@@ -13,10 +13,7 @@ import struct
 from typing import Any
 
 import pyunigps.exceptions as qge
-from pyunigps.unitypes_core import ATTTYPE, GET, POLL, SET, U2, U4, UNI_MSGIDS
-from pyunigps.unitypes_get import UNI_PAYLOADS_GET
-from pyunigps.unitypes_poll import UNI_PAYLOADS_POLL
-from pyunigps.unitypes_set import UNI_PAYLOADS_SET
+from pyunigps.unitypes_core import ATTTYPE, U4
 
 CRCTABLE = [
     0x00000000,
@@ -276,6 +273,7 @@ CRCTABLE = [
     0x5A05DF1B,
     0x2D02EF8D,
 ]
+"""ARC table for CRC calculation in calc_crc"""
 
 
 def att2idx(att: str) -> int | tuple[int]:
@@ -432,77 +430,6 @@ def get_bits(bitfield: bytes, bitmask: int) -> int:
         bitmask = bitmask >> 1
         i += 1
     return val >> i & bitmask
-
-
-def getinputmode(msggrp: bytes, msgid: bytes, length: bytes) -> int:
-    """
-    Return input message mode (SET or POLL).
-
-    :param bytes data: raw UNI input message
-    :return: message mode (1 = SET, 2 = POLL)
-    :rtype: int
-    """
-
-    try:
-        mid = UNI_MSGIDS[msggrp + msgid]
-        leni = bytes2val(length, U2)
-        if leni == getpaylen(mid, SET):
-            return SET
-        if leni == getpaylen(mid, POLL):
-            return POLL
-    except (KeyError, ValueError):
-        pass
-    return SET
-
-
-def getpaylen(identity: str, mode: int = GET) -> int:
-    """
-    Get length of payload dictionary in bytes.
-
-    :param str identity: identity of message
-    :param int mode: message mode (GET/SET/POLL)
-    :return: length in bytes or -1 if variable length
-    :rtype: int
-    """
-
-    try:
-        dic = [UNI_PAYLOADS_GET, UNI_PAYLOADS_SET, UNI_PAYLOADS_POLL][mode]
-        leni = 0
-        for _, typ in dic[identity].items():
-            siz = attsiz(typ)
-            if siz > 0:
-                leni += siz
-            else:
-                return -1
-        return leni
-    except (IndexError, ValueError):
-        return -1
-
-
-def hextable(raw: bytes, cols: int = 8) -> str:
-    """
-    Formats raw (binary) message in tabular hexadecimal format e.g.
-
-    000: 2447 4e47 5341 2c41 2c33 2c33 342c 3233 | b'$GNGSA,A,3,34,23' |
-
-    :param bytes raw: raw (binary) data
-    :param int cols: number of columns in hex table (8)
-    :return: table of hex data
-    :rtype: str
-    """
-
-    hextbl = ""
-    colw = cols * 4
-    rawh = raw.hex()
-    for i in range(0, len(rawh), colw):
-        rawl = rawh[i : i + colw].ljust(colw, " ")
-        hextbl += f"{int(i/2):03}: "
-        for col in range(0, colw, 4):
-            hextbl += f"{rawl[col : col + 4]} "
-        bfh = str(bytes.fromhex(rawl))
-        hextbl += f" | {bfh:<67} |\n"
-
-    return hextbl
 
 
 def isvalid_checksum(message: bytes) -> bool:

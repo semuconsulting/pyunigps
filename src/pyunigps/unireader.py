@@ -60,6 +60,7 @@ from pyunigps.unitypes_core import (
     RTCM3_PROTOCOL,
     SET,
     SETPOLL,
+    U1,
     U2,
     UNI_HDR,
     UNI_PROTOCOL,
@@ -400,6 +401,7 @@ class UNIReader:
         lenm = len(message)
         hdr = message[0:3]
         cpuidleb = message[3:4]
+        cpuidle = bytes2val(cpuidleb, U1)
         msgidb = message[4:6]
         msgid = bytes2val(msgidb, U2)
         lenb = message[6:8]
@@ -441,13 +443,13 @@ class UNIReader:
                     )
                 )
         parsed_data = UNIMessage(
-            msgid,
-            lenb,
-            verinfob,
-            crcb,
-            cpuidleb,
-            msgmode,
-            parsebitfield,
+            msgid=msgid,
+            verinfo=verinfob,
+            length=leni,
+            checksum=crcb,
+            cpuidle=cpuidle,
+            msgmode=msgmode,
+            parsebitfield=parsebitfield,
             payload=payload,
         )
         return parsed_data

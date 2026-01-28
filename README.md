@@ -13,7 +13,7 @@ pyunigps
 [Troubleshooting](#troubleshoot) |
 [Author & License](#author)
 
-# WORK IN PROGRESS - NOT FOR PRODUCTION USE
+# WORK IN PROGRESS - NOT YET FOR PRODUCTION USE
 
 `pyunigps` is an original Python 3 parser for the UNI &copy; protocol. UNI is our term for the proprietary binary protocol implemented on Unicore &trade; GNSS receiver modules. `pyunigps` can also parse NMEA 0183 &copy; and RTCM3 &copy; protocols via the underlying [`pynmeagps`](https://github.com/semuconsulting/pynmeagps) and [`pyrtcm`](https://github.com/semuconsulting/pyrtcm) packages from the same author - hence it covers all the protocols that Unicore UNI GNSS receivers are capable of outputting.
 
@@ -32,7 +32,8 @@ This is an independent project and we have no affiliation whatsoever with Unicor
 ![Contributors](https://img.shields.io/github/contributors/semuconsulting/pyunigps.svg)
 ![Open Issues](https://img.shields.io/github/issues-raw/semuconsulting/pyunigps)
 
-The current pre-alpha release creates skeleton UNIReader and UNIMessage classes and basic tests using nominal data. It is NOT suitable for production use.
+This pre-alpha release implements functional UNI parse and construct methods via UNIReader and UNIMessage classes, but
+does not yet include all 79 documented UNI payload definitions. These are on the backlog and will be completed and tested as and when time permits. Refer to [UNI_MSGIDS in unitypes_core.py](https://github.com/semuconsulting/pyunigps/blob/main/src/pyunigps/unitypes_core.py#L86) for the complete list of message definitions currently on the backlog. UNI protocol information sourced from public domain Unicore GNSS Protocol Specification © 2023, Unicore.
 
 ![No Copilot](https://github.com/semuconsulting/PyGPSClient/blob/master/images/nocopilot100.png?raw=true)
 
@@ -59,7 +60,7 @@ source env/bin/activate # (or env\Scripts\activate on Windows)
 python3 -m pip install --upgrade pyunigps
 ```
 
-For [Conda](https://docs.conda.io/en/latest/) users, `pyunigps` is also available from [conda forge](https://github.com/conda-forge/pyunigps-feedstock):
+For [Conda](https://docs.conda.io/en/latest/) users, `pyunigps` will in due course be made available from [conda forge](https://github.com/conda-forge/pyunigps-feedstock):
 
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/pyunigps/badges/version.svg)](https://anaconda.org/conda-forge/pyunigps)
 [![Anaconda-Server Badge](https://img.shields.io/conda/dn/conda-forge/pyunigps)](https://anaconda.org/conda-forge/pyunigps)
@@ -69,6 +70,8 @@ conda install -c conda-forge pyunigps
 ```
 ---
 ## <a name="msgcat">UNI Message Categories - GET, SET, POLL</a>
+
+**NB: following may change in final version:**
 
 `pyunigps` divides UNI messages into three categories, signified by the `mode` or `msgmode` parameter.
 
@@ -122,7 +125,7 @@ with Serial("/dev/ttyACM0", 115200, timeout=3) as stream:
         print(parsed_data)
 ```
 ```
-<UNI()>
+<UNI(BESTNAV, ...)>
 ```
 
 Example B - File input (using iterator). This will only output UNI data, and fail on any error:
@@ -137,7 +140,7 @@ with open("pygpsdata_lg580p_UNI.log", "rb") as stream:
         print(parsed_data)
 ```
 ```
-<UNI()>     
+<UNI(BESTNAV, ...)>     
 ```
 
 Example C - Socket input (using iterator). This will output UNI, NMEA and RTCM3 data, and ignore any errors:
@@ -166,7 +169,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as stream:
 
 ```
 ```
-<UNI()>
+<UNI(BESTNAV, ...)>
 ```
 
 ---
@@ -200,7 +203,7 @@ print(msg)
 
 ```
 ```
-<UNI()>
+<UNI(BESTNAV, ...)>
 ```
 
 The `UNIMessage` object exposes different public attributes depending on its message type or 'identity',
@@ -209,14 +212,10 @@ e.g. the `RAW-PPPB2B` message has the following attributes:
 ```python
 print(msg)
 print(msg.identity)
-print(msg.msgver)
-print(msg.prn)
 ```
 ```
-<UNI()>
-RAW-PPPB2B
-1
-60
+<UNI(BESTNAV, ...)>
+BESTNAV
 ```
 
 The `payload` attribute always contains the raw payload as bytes. Attributes within repeating groups are parsed with a two-digit suffix (svid_01, svid_02, etc.).
@@ -241,33 +240,22 @@ The message payload can be defined via keyword arguments in one of three ways:
 2. One or more keyword arguments corresponding to individual message attributes. Any attributes not explicitly provided as keyword arguments will be set to a nominal value according to their type.
 3. If no keyword arguments are passed, the payload is assumed to be null.
 
-Example A - generate a CFG-UART SET (command) message from individual keyword arguments:
+Example A - generate a BESTNAV message from payload bytes:
 
 ```python
-from pyunigps import UNIMessage, SET
-msg = UNIMessage()
+from pyunigps import UNIMessage, GET
+msg = UNIMessage(..., payload=...)
 print(msg)
 ```
 ```
 <UNI()>
 ```
 
-Example B - generate a INF-VER POLL (query) message from individual keyword arguments:
-
-```python
-from pyunigps import UNIMessage, POLL
-msg = UNIMessage()
-print(msg)
-```
-```
-<UNI(INF-VER)>
-```
-
-Example C - generate a RAW-PPPB2B GET (output) message from individual keyword arguments:
+Example B - generate a BESTNAV message from individual keyword arguments:
 
 ```python
 from pyunigps import UNIMessage, GET
-msg = UNIMessage()
+msg = UNIMessage(...)
 print(msg)
 ```
 ```
@@ -292,9 +280,9 @@ print(output)
 serialOut.write(output)
 ```
 ```
-<UNI()>
+<UNI(...)>
 
-b''
+b'...'
 ```
 
 ---
@@ -329,7 +317,7 @@ Repeating attribute names are parsed with a two-digit suffix (svid_01, svid_02, 
 
 #### 1. `UnicodeDecode` errors.
 - If reading UNI data from a log file, check that the file.open() procedure is using the `rb` (read binary) setting e.g.
-`stream = open('UNIdata.log', 'rb')`.
+`stream = open('unidata.log', 'rb')`.
 
 ---
 ## <a name="author">Author & License Information</a>

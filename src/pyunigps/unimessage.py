@@ -43,6 +43,7 @@ from pyunigps.unitypes_set import UNI_PAYLOADS_SET
 class UNIMessage:
     """UNI Message Class."""
 
+    # TODO NB __init__ args may change in final version
     def __init__(
         self,
         msgid: int,
