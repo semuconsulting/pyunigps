@@ -96,6 +96,7 @@ disable = """
     useless-suppression,
     deprecated-pragma,
     use-symbolic-message-instead,
+    fix-me,
 """
 
 [tool.pytest.ini_options]
