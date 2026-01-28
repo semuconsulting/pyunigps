@@ -9,14 +9,4 @@ https://www.ardusimple.com/wp-content/uploads/2023/04/Unicore-Reference-Commands
 :author: semuadmin (Steve Smith)
 """
 
-from pyunigps.unitypes_core import (
-    U1,
-    U2,
-)
-from pyunigps.unitypes_get import UNI_PAYLOADS_GET
-
-UNI_PAYLOADS_SET = {
-    # ********************************************************************
-    # https://www.ardusimple.com/wp-content/uploads/2023/04/Unicore-Reference-Commands-Manual-For-N4-High-Precision-Products_V2_EN_R1.4-1.pdf
-    # ********************************************************************
-}
+UNI_PAYLOADS_SET = {}

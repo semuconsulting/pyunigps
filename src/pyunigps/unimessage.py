@@ -13,6 +13,7 @@ Created on 26 Sep 2020
 # pylint: disable=too-many-positional-arguments, too-many-locals, too-many-arguments
 
 import struct
+from types import NoneType
 
 from pyunigps.exceptions import UNIMessageError, UNITypeError
 from pyunigps.unihelpers import (
@@ -25,15 +26,14 @@ from pyunigps.unihelpers import (
 )
 from pyunigps.unitypes_core import (
     GET,
-    PAGE53,
     POLL,
     SCALROUND,
     SET,
-    SNSTR,
+    U1,
     U2,
+    U4,
     UNI_HDR,
     UNI_MSGIDS,
-    VERSTR,
 )
 from pyunigps.unitypes_get import UNI_PAYLOADS_GET
 from pyunigps.unitypes_poll import UNI_PAYLOADS_POLL
@@ -45,11 +45,11 @@ class UNIMessage:
 
     def __init__(
         self,
-        cpuidle: bytes,
-        msgid: bytes,
+        msgid: int,
         verinfo: bytes,
-        length: bytes = None,
-        checksum: bytes = None,
+        length: int | NoneType = None,
+        checksum: bytes | NoneType = None,
+        cpuidle: int = 0,
         msgmode: int = GET,
         parsebitfield: bool = True,
         **kwargs,
@@ -64,11 +64,11 @@ class UNIMessage:
         Otherwise, any named attributes will be assigned the value given, all others will
         be assigned a nominal value according to type.
 
-        :param bytes msgID: message ID
-        :param bytes cpuidle: cpu idle time
-        :param bytes length: payload length (will be derived if None)
+        :param int msgID: message ID
+        :param int | NoneType length: payload length (will be derived if None)
         :param bytes verinfo: version and time info
-        :param bytes checksum: checksum (will be derived if None)
+        :param bytes | NoneType checksum: CRC checksum (will be derived if None)
+        :param int cpuidle: cpu idle time
         :param int msgmode: message mode (0=GET, 1=SET, 2=POLL)
         :param bool parsebitfield: parse bitfields ('X' type attributes) Y/N
         :param kwargs: optional payload keyword arguments
@@ -79,23 +79,19 @@ class UNIMessage:
         super().__setattr__("_immutable", False)
         self._mode = msgmode
         self._payload = b""
-        self._length = length  # bytes
-        if length is None:
-            self._lengthint = 0
-        else:
-            self._lengthint = bytes2val(length, U2)  # integer
+        self._length = length
         self._checksum = checksum  # bytes
         self._cpuidle = cpuidle
         self._verinfo = verinfo
         self._msgid = msgid
-        self._timeref = verinfo[0:1]
-        self._timestatus = verinfo[1:2]
-        self._wno = verinfo[2:4]
-        self._tow = verinfo[4:8]
-        self._version = verinfo[8:11]
+        self._timeref = bytes2val(verinfo[0:1], U1)
+        self._timestatus = bytes2val(verinfo[1:2], U1)
+        self._wno = bytes2val(verinfo[2:4], U2)
+        self._tow = bytes2val(verinfo[4:8], U4)
+        self._version = bytes2val(verinfo[8:11], U4)
         # reserved = verinfo[11:12]
-        self._leapsec = verinfo[12:13]
-        self._delay = verinfo[13:15]
+        self._leapsec = bytes2val(verinfo[12:13], U1)
+        self._delay = bytes2val(verinfo[13:15], U2)
         self._parsebf = parsebitfield  # parsing bitfields Y/N?
 
         if msgmode not in (GET, SET, POLL):
@@ -260,13 +256,6 @@ class UNIMessage:
         # variable length, depending on
         # - multiple of value of preceding attribute
         # - payload length - offset
-        if adef in (PAGE53, VERSTR, SNSTR):
-            an, at, ml = adef.split("_", 2)
-            if adef in (PAGE53,):
-                vl = getattr(self, an) * int(ml)
-            else:
-                vl = bytes2val(self._length, U2) - int(ml)
-            adef = f"{at}{vl:03d}"
         asiz = attsiz(adef)
 
         # if payload keyword has been provided,
@@ -381,11 +370,13 @@ class UNIMessage:
 
         payload = b"" if self._payload is None else self._payload
         if self._length is None:
-            self._lengthint = len(payload)
-            self._length = val2bytes(len(payload), U2)
+            self._length = len(payload)
         if self._checksum is None:
+            cpuidleb = val2bytes(self._cpuidle, U1)
+            msgidb = val2bytes(self._msgid, U2)
+            lenb = val2bytes(self._length, U2)
             self._checksum = calc_crc(
-                UNI_HDR + b"\x00" + self._msgid + self._length + self._verinfo + payload
+                UNI_HDR + cpuidleb + msgidb + lenb + self._verinfo + payload
             )
 
     def _get_dict(self, **kwargs) -> dict:  # pylint: disable=unused-argument
@@ -401,16 +392,8 @@ class UNIMessage:
         try:
             if self._mode == POLL:
                 pdict = UNI_PAYLOADS_POLL[self.identity]
-                # alternate definitions
-                if self.identity == "CFG-MSG" and self._lengthint == 5:
-                    pdict = UNI_PAYLOADS_SET[f"{self.identity}-INTF"]
             elif self._mode == SET:
                 pdict = UNI_PAYLOADS_SET[self.identity]
-                # alternate definitions
-                if self.identity == "CFG-MSG" and self._lengthint == 7:
-                    pdict = UNI_PAYLOADS_SET[f"{self.identity}-INTF"]
-                elif self.identity == "CFG-UART" and self._lengthint == 2:
-                    pdict = UNI_PAYLOADS_SET[f"{self.identity}-DIS"]
             else:
                 # Unknown GET message, parsed to nominal definition
                 if self.identity[-7:] == "NOMINAL":
@@ -421,8 +404,7 @@ class UNIMessage:
         except KeyError as err:
             mode = ["GET", "SET", "POLL"][self._mode]
             raise UNIMessageError(
-                f"Unknown message type {escapeall(self._msgid)}, mode {mode}. "
-                "Check 'msgmode' setting is appropriate for data stream"
+                f"Unknown message type {self._msgid}, mode {mode}"
             ) from err
 
     def _calc_num_repeats(
@@ -493,9 +475,13 @@ class UNIMessage:
 
         """
 
-        if self._payload is None:
-            return f"UNIMessage({self._msgid}, {self._mode}"
-        return f"UNIMessage({self._msgid}, {self._mode}, payload={self._payload})"
+        rep = (
+            f"UNIMessage({self._msgid}, {escapeall(self._verinfo)}, {self._length}, "
+            f"{escapeall(self._checksum)}, {self._cpuidle}, {self._mode}"
+        )
+        if self._payload is not None:
+            rep += f", payload={self._payload})"
+        return rep
 
     def __setattr__(self, name, value):
         """
@@ -525,7 +511,7 @@ class UNIMessage:
 
         return (
             UNI_HDR
-            + b"\x00"
+            + self._cpuidle
             + self._msgid
             + self._length
             + self._verinfo
@@ -555,81 +541,81 @@ class UNIMessage:
         return umsg_name
 
     @property
-    def msg_id(self) -> bytes:
+    def msg_id(self) -> int:
         """
         Message id getter.
 
         :return: message id as bytes
-        :rtype: bytes
+        :rtype: int
 
         """
 
         return self._msgid
 
     @property
-    def timeref(self) -> bytes:
+    def timeref(self) -> int:
         """
         Message timeref getter.
 
-        :return: Time ref as bytes
-        :rtype: bytes
+        :return: Time ref
+        :rtype: int
 
         """
         return self._timeref
 
     @property
-    def timestatus(self) -> bytes:
+    def timestatus(self) -> int:
         """
         Time status getter.
 
         :return: time status as bytes
-        :rtype: bytes
+        :rtype: int
 
         """
 
         return self._timestatus
 
     @property
-    def wno(self) -> bytes:
+    def wno(self) -> int:
         """
         Message group getter.
 
         :return: message class as bytes
-        :rtype: bytes
+        :rtype: int
 
         """
         return self._wno
 
     @property
-    def tow(self) -> bytes:
+    def tow(self) -> float:
         """
         Time of Week getter.
 
-        :return: tow as bytes
-        :rtype: bytes
+        :return: tow
+        :rtype: float
 
         """
 
         return self._tow
 
     @property
-    def version(self) -> bytes:
+    def version(self) -> int:
         """
         Message version getter.
 
-        :return: version as bytes
-        :rtype: bytes
+        :return: version
+        :rtype: int
 
         """
         return self._version
 
     @property
-    def leapsec(self) -> bytes:
+    def leapsec(self) -> int:
         """
         Leap second getter.
 
-        :return: leapsec as bytes
-        :rtype: bytes
+        :return: leapsec
+        :rtype: int
 
         """
 
@@ -645,7 +631,19 @@ class UNIMessage:
 
         """
 
-        return bytes2val(self._length, U2)
+        return self._length
+
+    @property
+    def checksum(self) -> bytes:
+        """
+        CRC checksum getter.
+
+        :return: CRC as bytes
+        :rtype: bytes
+
+        """
+
+        return self._checksum
 
     @property
     def payload(self) -> bytes:

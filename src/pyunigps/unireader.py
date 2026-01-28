@@ -399,10 +399,11 @@ class UNIReader:
 
         lenm = len(message)
         hdr = message[0:3]
-        cpuidle = message[3:4]
-        msgid = message[4:6]
+        cpuidleb = message[3:4]
+        msgidb = message[4:6]
+        msgid = bytes2val(msgidb, U2)
         lenb = message[6:8]
-        verinfo = message[8:24]
+        verinfob = message[8:24]
         crcb = message[lenm - 4 : lenm]
 
         if lenb == b"\x00\x00\x00\x00":
@@ -413,9 +414,9 @@ class UNIReader:
             leni = len(payload)
 
         if payload is not None:
-            crc = calc_crc(hdr + cpuidle + msgid + lenb + verinfo + payload)
+            crc = calc_crc(hdr + cpuidleb + msgidb + lenb + verinfob + payload)
         else:
-            crc = calc_crc(hdr + cpuidle + msgid + lenb + verinfo)
+            crc = calc_crc(hdr + cpuidleb + msgidb + lenb + verinfob)
 
         if validate & VALCKSUM:
             if hdr != UNI_HDR:
@@ -440,6 +441,13 @@ class UNIReader:
                     )
                 )
         parsed_data = UNIMessage(
-            cpuidle, msgid, lenb, verinfo, crcb, msgmode, parsebitfield, payload=payload
+            msgid,
+            lenb,
+            verinfob,
+            crcb,
+            cpuidleb,
+            msgmode,
+            parsebitfield,
+            payload=payload,
         )
         return parsed_data

@@ -10,9 +10,10 @@ Created on 6 Oct 2025
 """
 
 import struct
+from typing import Any
 
 import pyunigps.exceptions as qge
-from pyunigps.unitypes_core import ATTTYPE, GET, POLL, SET, U2, UNI_MSGIDS
+from pyunigps.unitypes_core import ATTTYPE, GET, POLL, SET, U2, U4, UNI_MSGIDS
 from pyunigps.unitypes_get import UNI_PAYLOADS_GET
 from pyunigps.unitypes_poll import UNI_PAYLOADS_POLL
 from pyunigps.unitypes_set import UNI_PAYLOADS_SET
@@ -277,7 +278,7 @@ CRCTABLE = [
 ]
 
 
-def att2idx(att: str) -> object:
+def att2idx(att: str) -> int | tuple[int]:
     """
     Get integer indices corresponding to grouped attribute.
 
@@ -285,7 +286,7 @@ def att2idx(att: str) -> object:
 
     :param str att: grouped attribute name e.g. svid_01
     :return: indices as integer(s), or 0 if not grouped
-    :rtype: int or tuple for nested group
+    :rtype: int | tuple[int]
     """
 
     try:
@@ -343,14 +344,14 @@ def atttyp(att: str) -> str:
     return att[0:1]
 
 
-def bytes2val(valb: bytes, att: str) -> object:
+def bytes2val(valb: bytes, att: str) -> Any:
     """
     Convert bytes to value for given UNI attribute type.
 
     :param bytes valb: attribute value in byte format e.g. b'\\\\x19\\\\x00\\\\x00\\\\x00'
     :param str att: attribute type e.g. 'U004'
     :return: attribute value as int, float, str or bytes
-    :rtype: object
+    :rtype: Any
     :raises: UNITypeError
 
     """
@@ -375,7 +376,7 @@ def calc_crc(message: bytes) -> bytes:
     TODO need to validate this algorithm
 
     :param bytes message: message
-    :return: CRC or 0
+    :return: CRC as bytes
     :rtype: bytes
 
     """
@@ -384,7 +385,7 @@ def calc_crc(message: bytes) -> bytes:
     crc = 0
     for i in range(size):
         crc = CRCTABLE[(crc ^ message[i]) & 0xFF] ^ (crc >> 8)
-    return int.to_bytes(crc, 4, "little")
+    return val2bytes(crc, U4)
 
     # poly = 0x04C11DB7
     # bitmask = 0xFFFFFFFF
@@ -538,13 +539,13 @@ def key_from_val(dictionary: dict, value) -> str:
     raise KeyError(f"No key found for value {value}")
 
 
-def nomval(att: str) -> object:
+def nomval(att: str) -> Any:
     """
     Get nominal value for given UNI attribute type.
 
     :param str att: attribute type e.g. 'U004'
     :return: attribute value as int, float, str or bytes
-    :rtype: object
+    :rtype: Any
     :raises: UNITypeError
 
     """
@@ -562,11 +563,11 @@ def nomval(att: str) -> object:
     return val
 
 
-def val2bytes(val, att: str) -> bytes:
+def val2bytes(val: Any, att: str) -> bytes:
     """
     Convert value to bytes for given UNI attribute type.
 
-    :param object val: attribute value e.g. 25
+    :param Any val: attribute value e.g. 25
     :param str att: attribute type e.g. 'U004'
     :return: attribute value as bytes
     :rtype: bytes
