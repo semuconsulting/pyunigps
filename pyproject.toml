@@ -1,0 +1,117 @@
+[build-system]
+requires = ["setuptools>=75.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyunigps"
+dynamic = ["version"]
+authors = [{ name = "Steve Smith", email = "semuadmin@semuconsulting.com" }]
+maintainers = [{ name = "Steve Smith", email = "semuadmin@semuconsulting.com" }]
+description = "Unicore UNI protocol parser and generator"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Operating System :: OS Independent",
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: MacOS X",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Utilities",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+dependencies = ["pynmeagps >= 1.1.0", "pyrtcm>=1.1.10"]
+
+[project.urls]
+homepage = "https://github.com/semuconsulting/pyunigps"
+documentation = "https://www.semuconsulting.com/pyunigps/"
+repository = "https://github.com/semuconsulting/pyunigps"
+changelog = "https://github.com/semuconsulting/pyunigps/blob/master/RELEASE_NOTES.md"
+
+[dependency-groups]
+optional = []
+build = [
+    "awscli",
+    "build",
+    "packaging>=24.2",
+    "pip",
+    "setuptools>=75.0.0",
+    "twine>=6.1.0",
+    "wheel",
+]
+test = [
+    "bandit",
+    "black",
+    "isort",
+    "pylint",
+    "pytest",
+    "pytest-cov",
+    "Sphinx",
+    "sphinx-rtd-theme",
+]
+deploy = [{ include-group = "build" }, { include-group = "test" }]
+
+[tool.setuptools.dynamic]
+version = { attr = "pyunigps._version.__version__" }
+
+[tool.black]
+target-version = ['py310']
+
+[tool.isort]
+py_version = 310
+profile = "black"
+
+[tool.bandit]
+exclude_dirs = ["docs", "examples", "references", "tests", ".venv"]
+skips = []
+
+[tool.pylint]
+jobs = 0
+reports = "y"
+recursive = "y"
+py-version = "3.10"
+fail-under = "9.8"
+fail-on = "E,F"
+clear-cache-post-run = "y"
+good-names = "i,j,x,y"
+disable = """
+    raw-checker-failed,
+    bad-inline-option,
+    locally-disabled,
+    file-ignored,
+    suppressed-message,
+    useless-suppression,
+    deprecated-pragma,
+    use-symbolic-message-instead,
+"""
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "--cov --cov-report html --cov-fail-under 50"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.coverage.paths]
+source = ["src"]
+
+[tool.coverage.report]
+fail_under = 50
+
+[tool.coverage.html]
+directory = "htmlcov"
