@@ -12,6 +12,7 @@ https://www.ardusimple.com/wp-content/uploads/2023/04/Unicore-Reference-Commands
 from pyunigps.unitypes_core import (
     U2,
     U3,
+    U4,
     X1,
 )
 
@@ -105,7 +106,23 @@ UNI_PAYLOADS_GET = {
     "BSLNXYZHD2": {},
     "DOPHD2": {},
     "TEST12": {"data": U3, "mode": U2},
-    "TEST14": {"data": U3, "mode": U2, "status": U2},
+    "TEST14": {
+        "data": U3,
+        "mode": U2,
+        "status": (
+            X1,
+            {
+                "active": U4,
+                "jamming": U2,
+                "validpos": U2,
+            },
+        ),
+        "numSV": U2,
+        "group": (
+            "numSV",
+            {"svid": U2, "cno": U2},
+        ),
+    },
     # ********************************************************************
     # UNI nominal payload definition, used as fallback where no documented
     # payload definition is available.

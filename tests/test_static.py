@@ -27,8 +27,8 @@ from pyunigps.unihelpers import (
     bytes2val,
     nomval,
     key_from_val,
-    timeinfo2bytes,
-    timeinfo2vals,
+    header2bytes,
+    header2vals,
     utc2wnotow,
 )
 
@@ -72,6 +72,10 @@ class StaticTest(unittest.TestCase):
             val, att = inp
             res = val2bytes(val, att)
             self.assertEqual(res, EXPECTED_RESULTS[i])
+
+    def testVal2BytesBadType(self):
+        with self.assertRaisesRegex(TypeError, "Attribute type U002 value xxx must be <class 'int'>, not <class 'str'>"):
+            res = val2bytes("xxx", "U002")
 
     def testVal2BytesInvalid(self):
         with self.assertRaisesRegex(une.UNITypeError, "Unknown attribute type Y002"):
@@ -184,23 +188,25 @@ class StaticTest(unittest.TestCase):
         print(wno, tow)
         self.assertEqual((wno, tow), (2403, 293652234))
 
-    def testtimeinfo2bytes(self):
-        t = timeinfo2bytes(wno=2406, tow=34675834)
-        # print(t)
-        self.assertEqual(t, b'\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
-        self.assertEqual(len(t), 16)
-        t = timeinfo2bytes(1,1, 2402, 34675834,1,18,23)
-        # print(t)
-        self.assertEqual(t, b'\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
-        self.assertEqual(len(t), 16)
+    def testheader2bytes(self):
+        t = header2bytes(msgid=17, length=308, cpuidle=0, wno=2406, tow=34675834)
+        print(t)
+        self.assertEqual(t, b'\x00\x11\x004\x01\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
+        self.assertEqual(len(t), 21)
+        t = header2bytes(17, 308, 0, 1,1, 2402, 34675834,1,18,23)
+        print(t)
+        self.assertEqual(t, b'\x00\x11\x004\x01\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
+        self.assertEqual(len(t), 21)
+        t = header2bytes(msgid=17, length=308) # wno and tow default to now
+        self.assertEqual(len(t), 21)
     
-    def testtimeinfo2vals(self):
-        v = timeinfo2vals(b'\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
+    def testheader2vals(self):
+        v = header2vals(b'\x00\x11\x004\x01\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
         # print(v)
-        self.assertEqual(v,(1, 0, 2406, 34675834, 0, 0, 0))
-        v = timeinfo2vals(b'\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
+        self.assertEqual(v,(0, 17, 308, 1, 0, 2406, 34675834, 0, 0, 0, 0))
+        v = header2vals(b'\x00\x11\x004\x01\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
         # print(v)
-        self.assertEqual(v,(1,1, 2402, 34675834,1,18,23))
+        self.assertEqual(v,(0, 17, 308, 1,1, 2402, 34675834,1,0, 18,23))
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

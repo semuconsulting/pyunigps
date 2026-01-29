@@ -4,7 +4,7 @@ UNIReader class.
 Reads and parses individual UNI messages from any viable
 data stream which supports a read(n) -> bytes method.
 
-UNI message bit format (little-endian):
+UNI message byte format (little-endian):
 
 +----------+---------+---------+---------+-----------+----------+---------+
 |   sync   | cpuidle |  msgid  | length  | timeinfo  | payload  |   crc   |
@@ -36,28 +36,17 @@ Created on 26 Jan 2026
 :license: BSD 3-Clause
 """
 
-# pylint: disable=too-many-positional-arguments
+# pylint: disable=too-many-positional-arguments, too-many-locals, too-many-arguments, too-many-instance-attributes
 
 from logging import getLogger
 from socket import socket
+from types import NoneType
 
-import pynmeagps.exceptions as nme
-import pyrtcm.exceptions as rte
-from pynmeagps import NMEA_HDR, NMEAReader, SocketWrapper
-from pyrtcm import RTCMReader
+from pynmeagps import NMEA_HDR, NMEAMessage, NMEAReader, SocketWrapper
+from pyrtcm import RTCMMessage, RTCMReader
 
-from pyunigps.exceptions import (
-    UNIMessageError,
-    UNIParseError,
-    UNIStreamError,
-    UNITypeError,
-)
-from pyunigps.unihelpers import (
-    bytes2val,
-    calc_crc,
-    escapeall,
-    val2bytes,
-)
+from pyunigps.exceptions import GNSSERRORS, UNIParseError, UNIStreamError
+from pyunigps.unihelpers import calc_crc, escapeall, header2vals
 from pyunigps.unimessage import UNIMessage
 from pyunigps.unitypes_core import (
     ERR_LOG,
@@ -68,9 +57,6 @@ from pyunigps.unitypes_core import (
     RTCM3_PROTOCOL,
     SET,
     SETPOLL,
-    U1,
-    U2,
-    U4,
     UNI_HDR,
     UNI_PROTOCOL,
     VALCKSUM,
@@ -110,7 +96,6 @@ class UNIReader:
         :param object errorhandler: error handling object or function (None)
         :raises: UNIStreamError (if mode is invalid)
         """
-        # pylint: disable=too-many-arguments
 
         if isinstance(datastream, socket):
             self._stream = SocketWrapper(datastream, bufsize=bufsize)
@@ -163,6 +148,7 @@ class UNIReader:
         """
 
         parsing = True
+        raw_data = parsed_data = None
         while parsing:  # loop until end of valid message or EOF
             try:
 
@@ -212,46 +198,26 @@ class UNIReader:
 
             except EOFError:
                 return (None, None)
-            except (
-                UNIMessageError,
-                UNITypeError,
-                UNIParseError,
-                UNIStreamError,
-                nme.NMEAMessageError,
-                nme.NMEATypeError,
-                nme.NMEAParseError,
-                nme.NMEAStreamError,
-                rte.RTCMMessageError,
-                rte.RTCMParseError,
-                rte.RTCMStreamError,
-                rte.RTCMTypeError,
-            ) as err:
+            except GNSSERRORS as err:
                 if self._quitonerror:
                     self._do_error(err)
                 continue
 
         return (raw_data, parsed_data)
 
-    def _parse_uni(self, hdr: bytes) -> tuple:
+    def _parse_uni(self, hdr: bytes) -> tuple[bytes, UNIMessage | NoneType]:
         """
         Parse remainder of UNI message.
 
         :param bytes hdr: UNI header (b'\\xaa\\x44\\xb5')
         :return: tuple of (raw_data as bytes, parsed_data as UNIMessage or None)
-        :rtype: tuple
+        :rtype: tuple[bytes, UNIMessage | NoneType]
         """
 
-        # read the rest of the UNI message from the buffer
-        byten = self._read_bytes(21)
-        cpuidle = byten[0:1]
-        msgid = byten[1:3]
-        lenb = byten[3:5]
-        timeinfo = byten[5:21]
-        leni = int.from_bytes(lenb, "little", signed=False)
-        byten = self._read_bytes(leni + 4)
-        plb = byten[0:leni]
-        crc = byten[leni : leni + 4]
-        raw_data = hdr + cpuidle + msgid + lenb + timeinfo + plb + crc
+        header = self._read_bytes(21)
+        lenp = int.from_bytes(header[3:5], "little")
+        payload = self._read_bytes(lenp + 4)
+        raw_data = hdr + header + payload
         # only parse if we need to (filter passes UNI)
         if (self._protfilter & UNI_PROTOCOL) and self._parsing:
             parsed_data = self.parse(
@@ -264,18 +230,18 @@ class UNIReader:
             parsed_data = None
         return (raw_data, parsed_data)
 
-    def _parse_nmea(self, hdr: bytes) -> tuple:
+    def _parse_nmea(self, hdr: bytes) -> tuple[bytes, NMEAMessage | NoneType]:
         """
         Parse remainder of NMEA message (using pynmeagps library).
 
         :param bytes hdr: NMEA header (b'\\x24\\x..')
         :return: tuple of (raw_data as bytes, parsed_data as NMEAMessage or None)
-        :rtype: tuple
+        :rtype: tuple[bytes, NMEAMessage | NoneType ]
         """
 
         # read the rest of the NMEA message from the buffer
-        byten = self._read_line()  # NMEA protocol is CRLF-terminated
-        raw_data = hdr + byten
+        payload = self._read_line()  # NMEA protocol is CRLF-terminated
+        raw_data = hdr + payload
         # only parse if we need to (filter passes NMEA)
         if (self._protfilter & NMEA_PROTOCOL) and self._parsing:
             # invoke pynmeagps parser
@@ -288,13 +254,13 @@ class UNIReader:
             parsed_data = None
         return (raw_data, parsed_data)
 
-    def _parse_rtcm3(self, hdr: bytes) -> tuple:
+    def _parse_rtcm3(self, hdr: bytes) -> tuple[bytes, RTCMMessage | NoneType]:
         """
         Parse any RTCM3 data in the stream (using pyrtcm library).
 
         :param bytes hdr: first 2 bytes of RTCM3 header
         :return: tuple of (raw_data as bytes, parsed_stub as RTCMMessage)
-        :rtype: tuple
+        :rtype: tuple[bytes, RTCMMessage | NoneType]
         """
 
         hdr3 = self._read_bytes(1)
@@ -388,7 +354,7 @@ class UNIReader:
         msgmode: int = GET,
         validate: int = VALCKSUM,
         parsebitfield: bool = True,
-    ) -> object:
+    ) -> UNIMessage:
         """
         Parse UNI byte stream to UNIMessage object.
 
@@ -408,23 +374,23 @@ class UNIReader:
             )
 
         lenm = len(message)
-        hdr = message[0:3]
-        cpuidleb = message[3:4]
-        cpuidle = bytes2val(cpuidleb, U1)
-        msgidb = message[4:6]
-        msgid = bytes2val(msgidb, U2)
-        lenb = message[6:8]
-        length = bytes2val(lenb, U2)
-        timeref = bytes2val(message[8:9], U1)
-        timestatus = bytes2val(message[9:10], U1)
-        wno = bytes2val(message[10:12], U2)
-        tow = bytes2val(message[12:16], U4)
-        version = bytes2val(message[16:20], U4)
-        leapsecond = bytes2val(message[21:22], U1)
-        delay = bytes2val(message[22:24], U1)
         crcb = message[lenm - 4 : lenm]
+        hdr = message[0:3]
+        (
+            cpuidle,
+            msgid,
+            length,
+            timeref,
+            timestatus,
+            wno,
+            tow,
+            version,
+            _,
+            leapsecond,
+            delay,
+        ) = header2vals(message[3:24])
 
-        if lenb == b"\x00\x00\x00\x00":
+        if length == 0:
             payload = None
             lenp = 0
         else:
@@ -446,10 +412,7 @@ class UNIReader:
                 )
             if lenp != length:
                 raise UNIParseError(
-                    (
-                        f"Invalid payload length {escapeall(lenb)}"
-                        f" - should be {val2bytes(lenp, U2)}"
-                    )
+                    (f"Invalid payload length {length}" f" - should be {lenp}")
                 )
             if crc != crcb:
                 raise UNIParseError(

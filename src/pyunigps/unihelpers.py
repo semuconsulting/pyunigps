@@ -15,10 +15,11 @@ from types import NoneType
 from typing import Any
 
 import pyunigps.exceptions as qge
-from pyunigps.unitypes_core import ATTTYPE, U1, U2, U4
+from pyunigps.unitypes_core import ATTTYPE, U4
 
+# base epoch for wno and tow
 GPSEPOCH0 = datetime(1980, 1, 6, tzinfo=timezone.utc)
-# ARC table for CRC calculation in calc_crc
+# CRC table for calculation in calc_crc
 CRCTABLE = [
     0x00000000,
     0x77073096,
@@ -374,8 +375,6 @@ def calc_crc(message: bytes) -> bytes:
     """
     Perform CRC32 cyclic redundancy check.
 
-    TODO need to validate this algorithm
-
     :param bytes message: message
     :return: CRC as bytes
     :rtype: bytes
@@ -387,18 +386,6 @@ def calc_crc(message: bytes) -> bytes:
     for i in range(size):
         crc = CRCTABLE[(crc ^ message[i]) & 0xFF] ^ (crc >> 8)
     return val2bytes(crc, U4)
-
-    # poly = 0x04C11DB7
-    # bitmask = 0xFFFFFFFF
-    # crc = 0
-    # for byte in message:
-    #     for _ in range(8):
-    #         b = bitmask if byte & (1 << 7) != 0 else 0
-    #         divide = bitmask if (crc & (1 << 31)) != 0 else 0
-    #         crc = (crc << 1) ^ (poly & (b ^ divide))
-    #         byte <<= 1
-    #         crc &= bitmask
-    # return crc
 
 
 def escapeall(val: bytes) -> str:
@@ -433,6 +420,68 @@ def get_bits(bitfield: bytes, bitmask: int) -> int:
         bitmask = bitmask >> 1
         i += 1
     return val >> i & bitmask
+
+
+def header2bytes(
+    msgid: int,
+    length: int,
+    cpuidle: int = 0,
+    timeref: int = 1,
+    timestatus: int = 0,
+    wno: int | NoneType = None,
+    tow: int | NoneType = None,
+    version: int = 0,
+    leapsecond: int = 0,
+    delay: int = 0,
+) -> bytes:
+    """
+    Convert individual values to header structure
+    (excluding 3 fixed sync bytes).
+
+    :param int msgid: msgid
+    :param int length: payload length
+    :param int cpuidle: cpuidle
+    :param int timeref: Description
+    :param int timestatus: Description
+    :param int | NoneType wno: Description
+    :param int | NoneType tow: Description
+    :param int version: Description
+    :param int leapsecond: Description
+    :param int delay: Description
+    :return: header as bytes
+    :rtype: bytes
+    """
+
+    if wno is None or tow is None:
+        wno, tow = utc2wnotow(datetime.now(tz=timezone.utc))
+    return struct.pack(
+        "<BHHBBHLLBBH",
+        cpuidle,
+        msgid,
+        length,
+        timeref,
+        timestatus,
+        wno,
+        tow,
+        version,
+        0,  # reserved
+        leapsecond,
+        delay,
+    )
+
+
+def header2vals(header: bytes) -> tuple:
+    """
+    Convert header bytes (excluding 3 fixed sync bytes)
+    into individual values.
+
+    :param bytes header: header bytes
+    :return: tuple of
+      (cpuidle, msgid, length, timeref, timestatus, wno,
+      tow, version, reserved, leapsecond, delay)
+    """
+
+    return struct.unpack("<BHHBBHLLBBH", header)
 
 
 def isvalid_checksum(message: bytes) -> bool:
@@ -493,6 +542,24 @@ def nomval(att: str) -> Any:
     return val
 
 
+def utc2wnotow(utc: datetime = datetime.now(tz=timezone.utc)) -> tuple[int, int]:
+    """
+    Get GPS Week number (Wno) and Time of Week (Tow)
+    in milliseconds for given utc datetime.
+
+    GPS Epoch 0 = 6th Jan 1980
+
+    :param datetime dat: calendar date
+    :return: Wno, Tow
+    :rtype: tuple[int,int]
+    """
+
+    ts = (utc - GPSEPOCH0).total_seconds() * 1000
+    wno = int((utc - GPSEPOCH0).days / 7)
+    tow = int(ts - wno * 604800000)
+    return wno, tow
+
+
 def val2bytes(val: Any, att: str) -> bytes:
     """
     Convert value to bytes for given UNI attribute type.
@@ -524,79 +591,3 @@ def val2bytes(val: Any, att: str) -> bytes:
     elif atttyp(att) == "R":  # floating point
         valb = struct.pack("<f" if attsiz(att) == 4 else "<d", float(val))
     return valb
-
-
-def utc2wnotow(utc: datetime = datetime.now(tz=timezone.utc)) -> tuple[int, int]:
-    """
-    Get GPS Week number (Wno) and Time of Week (Tow)
-    in milliseconds for given utc datetime.
-
-    GPS Epoch 0 = 6th Jan 1980
-
-    :param datetime dat: calendar date
-    :return: Wno, Tow
-    :rtype: tuple[int,int]
-    """
-
-    ts = (utc - GPSEPOCH0).total_seconds() * 1000
-    wno = int((utc - GPSEPOCH0).days / 7)
-    tow = int(ts - wno * 604800000)
-    return wno, tow
-
-
-def timeinfo2vals(timeinfo: bytes) -> tuple:
-    """
-    Convert timeinfo bytes from header to values
-
-    :param bytes timeinfo: timeinfo from header
-    :return: individual values
-    :rtype: tuple
-    """
-
-    timeref = bytes2val(timeinfo[0:1], U1)
-    timestatus = bytes2val(timeinfo[1:2], U1)
-    wno = bytes2val(timeinfo[2:4], U2)
-    tow = bytes2val(timeinfo[4:8], U4)
-    version = bytes2val(timeinfo[8:12], U4)
-    # reserved = bytes2val(timeinfo[12:13], U1)
-    leapsecond = bytes2val(timeinfo[13:14], U1)
-    delay = bytes2val(timeinfo[14:16], U2)
-    return timeref, timestatus, wno, tow, version, leapsecond, delay
-
-
-def timeinfo2bytes(
-    timeref: int = 1,
-    timestatus: int = 0,
-    wno: int | NoneType = None,
-    tow: int | NoneType = None,
-    version: int = 0,
-    leapsecond: int = 0,
-    delay: int = 0,
-) -> bytes:
-    """
-    Convert timeinfo values to header bytes
-
-    :param int timeref: Description
-    :param int timestatus: Description
-    :param int | NoneType wno: Description
-    :param int | NoneType tow: Description
-    :param int version: Description
-    :param int leapsecond: Description
-    :param int delay: Description
-    :return: timeinfo as bytes
-    :rtype: bytes
-    """
-
-    if wno is None or tow is None:
-        wno, tow = utc2wnotow(datetime.now(tz=timezone.utc))
-
-    return (
-        val2bytes(timeref, U1)
-        + val2bytes(timestatus, U1)
-        + val2bytes(wno, U2)
-        + val2bytes(tow, U4)
-        + val2bytes(version, U4)
-        + val2bytes(0, U1)
-        + val2bytes(leapsecond, U1)
-        + val2bytes(delay, U2)
-    )

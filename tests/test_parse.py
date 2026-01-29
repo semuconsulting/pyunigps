@@ -14,29 +14,20 @@ import sys
 import os
 import unittest
 from io import StringIO, BytesIO
-from logging import ERROR
 
 from pyunigps import (
     UNIReader,
     UNIMessage,
-    SET,
     GET,
     POLL,
-    UNI_HDR,
     VALCKSUM,
-    VALNONE,
     ERR_RAISE,
     NMEA_PROTOCOL,
     RTCM3_PROTOCOL,
     UNI_PROTOCOL,
-    UNIMessageError,
-    UNIParseError,
-    UNIStreamError,
-    escapeall,
 )
-import pyunigps.unitypes_core as unt
 import pyunigps.exceptions as une
-
+from pyunigps.unihelpers import isvalid_checksum
 DIRNAME = os.path.dirname(__file__)
 
 
@@ -67,11 +58,11 @@ class StreamTest(unittest.TestCase):
     def testparse(self):
         DATA = [
             b"\xaa\x44\xb5\x00\xe8\xff\x05\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66\x01\x02\x03\x04\x05\xc1\xff\xd2\xaa",
-            b"\xaa\x44\xb5\x00\xea\xff\x07\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66\x01\x02\x03\x04\x05\x06\x07\xaa\x81\xa3\x7a",
-        ]
+            b'\xaaD\xb5\x00\xea\xff\x14\x00\x01\x00f\t\xaa\xdd\x13\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00A\x03\x00\x08\x00"\x00\x0f\x007\x00\x17\x000\x00\xa2_\x8a\xd4'
+            ]
         EXPECTED_PARSED = [
             "<UNI(TEST12, cpuidle=0, timeref=17, timestatus=34, wno=17459, tow=2289526357, version=571539609, leapsecond=68, delay=26197, data=197121, mode=1284)>",
-            "<UNI(TEST14, cpuidle=0, timeref=17, timestatus=34, wno=17459, tow=2289526357, version=571539609, leapsecond=68, delay=26197, data=197121, mode=1284, status=1798)>",
+            "<UNI(TEST14, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=0, mode=0, active=1, jamming=0, validpos=1, numSV=3, svid_01=8, cno_01=34, svid_02=15, cno_02=55, svid_03=23, cno_03=48)>",
         ]
         stream = b""
         for msg in DATA:
@@ -81,10 +72,12 @@ class StreamTest(unittest.TestCase):
         for raw, parsed in unr:
             # print(f'"{parsed}",')
             self.assertEqual(str(parsed), EXPECTED_PARSED[i])
+            self.assertEqual(parsed.msgmode, 0)
+            self.assertEqual(isvalid_checksum(raw),True)
             i += 1
         self.assertEqual(i, len(DATA))
 
-    def testconstruct(self):
+    def testconstructTEST12(self):
         EXPECTED_RESULT = "<UNI(TEST12, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=197121, mode=1284)>"
         msg = UNIMessage(
             msgid=65512,
@@ -105,6 +98,7 @@ class StreamTest(unittest.TestCase):
         # print(msg)
         self.assertEqual(str(msg), EXPECTED_RESULT)
         self.assertEqual(msg.checksum, b'\xb5\x0c\xf5\x11')
+
         # self.assertEqual(
         #     repr(msg),
         #     "UNIMessage(65512, b'\\x01\\x00\\x66\\x09\\xaa\\xdd\\x13\\x02\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00', 5, b'\\xb5\\x0c\\xf5\\x11', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05')"
@@ -133,8 +127,8 @@ class StreamTest(unittest.TestCase):
         # )
         self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
 
-    def testconstruct2(self):
-        EXPECTED_RESULT = "<UNI(TEST14, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=197121, mode=1284, status=1798)>"
+    def testconstructTEST14(self):
+        EXPECTED_RESULT = "<UNI(TEST14, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=0, mode=0, active=1, jamming=0, validpos=1, numSV=3, svid_01=8, cno_01=34, svid_02=15, cno_02=55, svid_03=23, cno_03=48)>"
         msg = UNIMessage(
             msgid=65514,
             length=None,
@@ -147,33 +141,24 @@ class StreamTest(unittest.TestCase):
             leapsecond=0,
             delay=0,
             checksum=None,
-            payload=b"\x01\x02\x03\x04\x05\x06\x07",
+            active=1,
+            jamming=0,
+            validpos=1,
+            numSV=3,
+            svid_01=8,
+            cno_01=34,
+            svid_02=15,
+            cno_02=55,
+            svid_03=23,
+            cno_03=48,
         )
-        print(msg)
+        # print(msg)
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b'\xd9%D\x15')
-        # self.assertEqual(
-        #     repr(msg),
-        #     "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')",
-        # )
+        self.assertEqual(msg.checksum, b'\xa2_\x8a\xd4')
         self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
-        msg = UNIMessage(
-            msgid=65514,
-            timeref=1,
-            wno=2406,
-            tow=34856362,
-            version=1,
-            data=197121,
-            mode=1284,
-            status=1798,
-        )
-        self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b'\xd9%D\x15')
-        # self.assertEqual(
-        #     repr(msg),
-        #     "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')",
-        # )
-        self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
+        msg1 = UNIReader.parse(msg.serialize())
+        print(msg.serialize())
+        self.assertEqual(str(msg1), EXPECTED_RESULT)
 
     def testserialize(self):
         EXPECTED_RAW = b'\xaaD\xb5\x00\x11\x004\x01\x00\x00f\t\x8f\xf4\x0e\x02\x00\x00\x00\x00\x00\x00\x00\x00M982R4.10Build5251                   HRPT00-S10C-P                                                                                                                    -                                                                 ffff48ffff0fffff                 2021/11/26                                 #\x87\x83\xb9'

@@ -4,13 +4,13 @@
    contain the root `toctree` directive.
 
 Welcome to pyunigps's documentation!
-==================================
+====================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-
+   modules.rst
 
 Indices and tables
 ==================

@@ -10,7 +10,7 @@ Created on 26 Sep 2020
 :license: BSD 3-Clause
 """
 
-# pylint: disable=too-many-positional-arguments, too-many-locals, too-many-arguments
+# pylint: disable=too-many-positional-arguments, too-many-locals, too-many-arguments, too-many-instance-attributes
 
 import struct
 from types import NoneType
@@ -21,8 +21,8 @@ from pyunigps.unihelpers import (
     bytes2val,
     calc_crc,
     escapeall,
+    header2bytes,
     nomval,
-    timeinfo2bytes,
     utc2wnotow,
     val2bytes,
 )
@@ -31,8 +31,6 @@ from pyunigps.unitypes_core import (
     POLL,
     SCALROUND,
     SET,
-    U1,
-    U2,
     UNI_HDR,
     UNI_MSGIDS,
 )
@@ -103,16 +101,6 @@ class UNIMessage:
         self.version = version
         self.leapsecond = leapsecond
         self.delay = delay
-        # serialized version of header time info
-        self._timeinfob = timeinfo2bytes(
-            self.timeref,
-            self.timestatus,
-            self.wno,
-            self.tow,
-            self.version,
-            self.leapsecond,
-            self.delay,
-        )
         self._mode = msgmode
         self._payload = b""
         self._parsebf = parsebitfield  # parsing bitfields Y/N?
@@ -244,16 +232,14 @@ class UNIMessage:
         return (offset, index)
 
     def _set_attribute_single(
-        self, anam: str, adef: object, offset: int, index: list, **kwargs
+        self, anam: str, adef: str | list, offset: int, index: list, **kwargs
     ) -> int:
         """
         Set individual attribute value, applying scaling where appropriate.
 
         :param str anam: attribute keyword
-        EITHER
-        :param str adef: attribute definition string e.g. 'U002'
-        OR
-        :param list adef: if scaled, list of [attribute type string, scaling factor float]
+        :param str | list adef: attribute definition string e.g. 'U002'
+           or, if scaled, list of [attribute type string, scaling factor float]
         :param int offset: payload offset in bytes
         :param list index: repeating group index array
         :param kwargs: optional payload key/value pairs
@@ -395,11 +381,21 @@ class UNIMessage:
         if self._length is None:
             self._length = len(payload)
         if self._checksum is None:
-            cpuidleb = val2bytes(self.cpuidle, U1)
-            msgidb = val2bytes(self._msgid, U2)
-            lenb = val2bytes(self._length, U2)
             self._checksum = calc_crc(
-                UNI_HDR + cpuidleb + msgidb + lenb + self._timeinfob + payload
+                UNI_HDR
+                + header2bytes(
+                    self._msgid,
+                    self._length,
+                    self.cpuidle,
+                    self.timeref,
+                    self.timestatus,
+                    self.wno,
+                    self.tow,
+                    self.version,
+                    self.leapsecond,
+                    self.delay,
+                )
+                + payload
             )
 
     def _get_dict(self, **kwargs) -> dict:  # pylint: disable=unused-argument
@@ -533,12 +529,20 @@ class UNIMessage:
 
         """
 
-        cpuidleb = val2bytes(self.cpuidle, U1)
-        msgidb = val2bytes(self._msgid, U2)
-        lenb = val2bytes(self._length, U2)
-        ser = UNI_HDR + cpuidleb + msgidb + lenb + self._timeinfob
+        hdr = header2bytes(
+            self._msgid,
+            self._length,
+            self.cpuidle,
+            self.timeref,
+            self.timestatus,
+            self.wno,
+            self.tow,
+            self.version,
+            self.leapsecond,
+            self.delay,
+        )
         payloadb = b"" if self._payload is None else self._payload
-        return ser + payloadb + self._checksum
+        return UNI_HDR + hdr + payloadb + self._checksum
 
     @property
     def identity(self) -> str:
