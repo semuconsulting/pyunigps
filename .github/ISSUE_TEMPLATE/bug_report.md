@@ -35,16 +35,13 @@ A clear and concise description of what you expected to happen.
 
 **Desktop (please complete the following information):**
 
-- The operating system you're using [e.g. Windows 11, MacOS Sequoia, Ubuntu Noble].
+- The operating system you're using [e.g. Windows 11, MacOS, Linux Distro].
 - The type of serial connection [e.g. USB, UART1, I2C].
 
 **GNSS/GPS Device (please complete the following information as best you can):**
 
-- Device Model/Generation: [e.g. Quectel NEO-9M].
+- Device Model/Generation: [e.g. Unicore UM980].
 - Firmware Version: [e.g. SPG 4.03].
-- Protocol: [e.g. 32.00].
- 
-This information is typically output by the device at startup via a series of NMEA TXT messages. It can also be found by polling the device with a UNI MON-VER message. If you're using the PyGPSClient GUI, a screenshot of the UNIConfig window should suffice.
 
 **Additional context**
 

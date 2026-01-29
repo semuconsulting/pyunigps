@@ -2,7 +2,7 @@
 
 ## Description
 
-Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context and, where applicable, any Quectel documentation sources you have used. List any dependencies that are required for this change.
+Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context and, where applicable, any *public domain* Unicore documentation sources you have used. List any dependencies that are required for this change.
 
 Please do **NOT** submit PRs containing information (e.g. UNI message definitions) which is subject to a Quectel Non-Disclosure Agreement (NDA).
 
@@ -12,8 +12,6 @@ Fixes # (issue)
 
 Please test all changes, however trivial, against the supplied pytest suite `tests/test_*.py`. Please describe any test cases you have amended or added to this suite to maintain >= 99% code coverage.
 
-If you're adding new UNI message definitions for Generation 9+ devices, please check for any corresponding configuration database updates (`UNItypes_configdb.py`).
-
 - [ ] Test A
 - [ ] Test B
 
@@ -22,7 +20,7 @@ If you're adding new UNI message definitions for Generation 9+ devices, please c
 - [ ] I agree to abide by the code of conduct (see [CODE_OF_CONDUCT.md](https://github.com/semuconsulting/pyunigps/blob/master/CODE_OF_CONDUCT.md)).
 - [ ] My code follows the style guidelines of this project (see [CONTRIBUTING.MD](https://github.com/semuconsulting/pyunigps/blob/master/CONTRIBUTING.md)).
 - [ ] I have performed a self-review of my own code.
-- [ ] (*if appropriate*) I have cited my Quectel documentation source(s).
+- [ ] (*if appropriate*) I have cited my public domain Unicore documentation source(s).
 - [ ] I have commented my code, particularly in hard-to-understand areas.
 - [ ] I have made corresponding changes to the documentation.
 - [ ] (*if appropriate*) I have added test cases to the `tests/test_*.py` unittest suite to maintain >= 99% code coverage.

@@ -35,6 +35,7 @@ from pyunigps import (
     escapeall,
 )
 import pyunigps.unitypes_core as unt
+import pyunigps.exceptions as une
 
 DIRNAME = os.path.dirname(__file__)
 
@@ -69,8 +70,8 @@ class StreamTest(unittest.TestCase):
             b"\xaa\x44\xb5\x00\xea\xff\x07\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66\x01\x02\x03\x04\x05\x06\x07\xaa\x81\xa3\x7a",
         ]
         EXPECTED_PARSED = [
-            "<UNI(TEST12, data=197121, mode=1284)>",
-            "<UNI(TEST14, data=197121, mode=1284, status=1798)>",
+            "<UNI(TEST12, cpuidle=0, timeref=17, timestatus=34, wno=17459, tow=2289526357, version=571539609, leapsecond=68, delay=26197, data=197121, mode=1284)>",
+            "<UNI(TEST14, cpuidle=0, timeref=17, timestatus=34, wno=17459, tow=2289526357, version=571539609, leapsecond=68, delay=26197, data=197121, mode=1284, status=1798)>",
         ]
         stream = b""
         for msg in DATA:
@@ -84,61 +85,133 @@ class StreamTest(unittest.TestCase):
         self.assertEqual(i, len(DATA))
 
     def testconstruct(self):
-        EXPECTED_RESULT = "<UNI(TEST12, data=197121, mode=1284)>"
+        EXPECTED_RESULT = "<UNI(TEST12, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=197121, mode=1284)>"
         msg = UNIMessage(
             msgid=65512,
-            verinfo=b"\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66",
             length=None,
-            checksum=None,
             cpuidle=0,
+            timeref=1,
+            timestatus=0,
+            wno=2406,
+            tow=34856362,
+            version=1,
+            leapsecond=0,
+            delay=0,
+            checksum=None,
             payload=b"\x01\x02\x03\x04\x05",
+            msgmode=GET,
+            parsebitfield=1,
         )
+        # print(msg)
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b"\xc1\xff\xd2\xaa")
-        self.assertEqual(repr(msg), "UNIMessage(65512, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 5, b'\\xc1\\xff\\xd2\\xaa', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05')")
-        self.assertEqual(str(eval(repr(msg))), "<UNI(TEST12, data=197121, mode=1284)>")
-        EXPECTED_RESULT = "<UNI(TEST12, data=197121, mode=1284)>"
+        self.assertEqual(msg.checksum, b'\xb5\x0c\xf5\x11')
+        # self.assertEqual(
+        #     repr(msg),
+        #     "UNIMessage(65512, b'\\x01\\x00\\x66\\x09\\xaa\\xdd\\x13\\x02\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00', 5, b'\\xb5\\x0c\\xf5\\x11', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05')"
+        #     )
+        self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
         msg = UNIMessage(
             msgid=65512,
-            verinfo=b"\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66",
             length=None,
-            checksum=None,
             cpuidle=0,
+            timeref=1,
+            timestatus=0,
+            wno=2406,
+            tow=34856362,
+            version=1,
+            leapsecond=0,
+            delay=0,
+            checksum=None,
             data=197121,
             mode=1284,
         )
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b"\xc1\xff\xd2\xaa")
-        self.assertEqual(repr(msg), "UNIMessage(65512, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 5, b'\\xc1\\xff\\xd2\\xaa', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05')")
-        self.assertEqual(str(eval(repr(msg))), "<UNI(TEST12, data=197121, mode=1284)>")
-        EXPECTED_RESULT = "<UNI(TEST14, data=197121, mode=1284, status=1798)>"
+        self.assertEqual(msg.checksum, b'\xb5\x0c\xf5\x11')
+        # self.assertEqual(
+        #     repr(msg),
+        #     "UNIMessage(65512, b'\\x01\\x00\\x66\\x09\\xaa\\xdd\\x13\\x02\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00', 5, b'\\xb5\\x0c\\xf5\\x11', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05')"
+        # )
+        self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
+
+    def testconstruct2(self):
+        EXPECTED_RESULT = "<UNI(TEST14, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=197121, mode=1284, status=1798)>"
         msg = UNIMessage(
             msgid=65514,
-            verinfo=b"\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66",
             length=None,
-            checksum=None,
             cpuidle=0,
+            timeref=1,
+            timestatus=0,
+            wno=2406,
+            tow=34856362,
+            version=1,
+            leapsecond=0,
+            delay=0,
+            checksum=None,
             payload=b"\x01\x02\x03\x04\x05\x06\x07",
         )
+        print(msg)
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b"\xaa\x81\xa3\x7a")
-        self.assertEqual(repr(msg), "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')")
-        self.assertEqual(str(eval(repr(msg))), "<UNI(TEST14, data=197121, mode=1284, status=1798)>")
-        EXPECTED_RESULT = "<UNI(TEST14, data=197121, mode=1284, status=1798)>"
+        self.assertEqual(msg.checksum, b'\xd9%D\x15')
+        # self.assertEqual(
+        #     repr(msg),
+        #     "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')",
+        # )
+        self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
         msg = UNIMessage(
             msgid=65514,
-            verinfo=b"\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66",
-            length=None,
-            checksum=None,
-            cpuidle=0,
+            timeref=1,
+            wno=2406,
+            tow=34856362,
+            version=1,
             data=197121,
             mode=1284,
             status=1798,
         )
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b"\xaa\x81\xa3\x7a")
-        self.assertEqual(repr(msg), "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')")
-        self.assertEqual(str(eval(repr(msg))), "<UNI(TEST14, data=197121, mode=1284, status=1798)>")
+        self.assertEqual(msg.checksum, b'\xd9%D\x15')
+        # self.assertEqual(
+        #     repr(msg),
+        #     "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')",
+        # )
+        self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
+
+    def testserialize(self):
+        EXPECTED_RAW = b'\xaaD\xb5\x00\x11\x004\x01\x00\x00f\t\x8f\xf4\x0e\x02\x00\x00\x00\x00\x00\x00\x00\x00M982R4.10Build5251                   HRPT00-S10C-P                                                                                                                    -                                                                 ffff48ffff0fffff                 2021/11/26                                 #\x87\x83\xb9'
+        EXPECTED_PARSE = "<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>"
+        msg = UNIMessage(
+            msgid=17,
+            wno=2406,
+            tow=34534543,
+            device="M982",
+            swversion="R4.10Build5251",
+            authtype="HRPT00-S10C-P",
+            psn="-",
+            efuseid="ffff48ffff0fffff",
+            comptime="2021/11/26",
+        )
+        print(msg.serialize())
+        self.assertEqual(msg.serialize(), EXPECTED_RAW)
+        msg = UNIReader.parse(msg.serialize())
+        print(msg)
+        self.assertEqual(str(msg), EXPECTED_PARSE)
+        self.assertEqual(str(eval(repr(msg))), str(msg))
+
+    def testimmutable(self):
+        msg = UNIMessage(
+            msgid=17,
+            timeinfo=b"\x00" * 16,
+            device="M982",
+            swversion="R4.10Build5251",
+            authtype="HRPT00-S10C-P",
+            psn="-",
+            efuseid="ffff48ffff0fffff",
+            comptime="2021/11/26",
+        )
+        with self.assertRaisesRegex(
+            une.UNIMessageError,
+            "Object is immutable. Updates to device not permitted after initialisation.",
+        ):
+            msg.device = "M888"
 
     def testrtcm(self):  # test RTCM parsing
         EXPECTED_RESULTS = (

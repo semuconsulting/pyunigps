@@ -6,13 +6,21 @@ data stream which supports a read(n) -> bytes method.
 
 UNI message bit format (little-endian):
 
-+----------+---------+---------+---------+-----------|----------+---------+
-|   sync   | cpuidle |  msgid  | length  |  verinfo  | payload  |   crc   |
++----------+---------+---------+---------+-----------+----------+---------+
+|   sync   | cpuidle |  msgid  | length  | timeinfo  | payload  |   crc   |
 +==========+=========+=========+=========+===========+==========+=========+
-| 0xaa44b5 | 8 bits  | 16 bits | 16 bits | 128 bits  | variable | 32 bits |
-+----------+---------+---------+---------+-----------|----------+---------+
-|                       24 bytes                     |          |         |
-+----------+---------+---------+---------+-----------|----------+---------+
+| 0xaa44b5 | 1 byte  | 2 bytes | 2 bytes | 16 bytes  | variable | 4 bytes |
++----------+---------+---------+---------+-----------+----------+---------+
+|                  header = 24 bytes                 |          |         |
++----------+---------+---------+---------+-----------+----------+---------+
+
+timeinfo:
+
++---------+----------+---------+---------+---------+----------+---------+---------+
+| timeref | timestat |   wno   |   tow   | version | reserved | leapsec |  delay  |
++=========+==========+=========+=========+=========+==========+=========+=========+
+| 1 byte  |  1 byte  | 2 bytes | 4 bytes | 4 bytes |  1 byte  | 1 byte  | 2 bytes |
++---------+----------+---------+---------+---------+----------+---------+---------+
 
 Returns both the raw binary data (as bytes) and the parsed data
 (as an UNIMessage object).
@@ -62,6 +70,7 @@ from pyunigps.unitypes_core import (
     SETPOLL,
     U1,
     U2,
+    U4,
     UNI_HDR,
     UNI_PROTOCOL,
     VALCKSUM,
@@ -237,12 +246,12 @@ class UNIReader:
         cpuidle = byten[0:1]
         msgid = byten[1:3]
         lenb = byten[3:5]
-        verinfo = byten[5:21]
+        timeinfo = byten[5:21]
         leni = int.from_bytes(lenb, "little", signed=False)
         byten = self._read_bytes(leni + 4)
         plb = byten[0:leni]
         crc = byten[leni : leni + 4]
-        raw_data = hdr + cpuidle + msgid + lenb + verinfo + plb + crc
+        raw_data = hdr + cpuidle + msgid + lenb + timeinfo + plb + crc
         # only parse if we need to (filter passes UNI)
         if (self._protfilter & UNI_PROTOCOL) and self._parsing:
             parsed_data = self.parse(
@@ -405,20 +414,27 @@ class UNIReader:
         msgidb = message[4:6]
         msgid = bytes2val(msgidb, U2)
         lenb = message[6:8]
-        verinfob = message[8:24]
+        length = bytes2val(lenb, U2)
+        timeref = bytes2val(message[8:9], U1)
+        timestatus = bytes2val(message[9:10], U1)
+        wno = bytes2val(message[10:12], U2)
+        tow = bytes2val(message[12:16], U4)
+        version = bytes2val(message[16:20], U4)
+        leapsecond = bytes2val(message[21:22], U1)
+        delay = bytes2val(message[22:24], U1)
         crcb = message[lenm - 4 : lenm]
 
         if lenb == b"\x00\x00\x00\x00":
             payload = None
-            leni = 0
+            lenp = 0
         else:
             payload = message[24 : lenm - 4]
-            leni = len(payload)
+            lenp = len(payload)
 
-        if payload is not None:
-            crc = calc_crc(hdr + cpuidleb + msgidb + lenb + verinfob + payload)
+        if payload is None:
+            crc = calc_crc(message[0:24])
         else:
-            crc = calc_crc(hdr + cpuidleb + msgidb + lenb + verinfob)
+            crc = calc_crc(message[0:24] + payload)
 
         if validate & VALCKSUM:
             if hdr != UNI_HDR:
@@ -428,11 +444,11 @@ class UNIReader:
                         f" - should be {escapeall(UNI_HDR)}"
                     )
                 )
-            if leni != bytes2val(lenb, U2):
+            if lenp != length:
                 raise UNIParseError(
                     (
                         f"Invalid payload length {escapeall(lenb)}"
-                        f" - should be {val2bytes(leni, U2)}"
+                        f" - should be {val2bytes(lenp, U2)}"
                     )
                 )
             if crc != crcb:
@@ -444,10 +460,16 @@ class UNIReader:
                 )
         parsed_data = UNIMessage(
             msgid=msgid,
-            verinfo=verinfob,
-            length=leni,
-            checksum=crcb,
+            length=length,
             cpuidle=cpuidle,
+            timeref=timeref,
+            timestatus=timestatus,
+            wno=wno,
+            tow=tow,
+            version=version,
+            leapsecond=leapsecond,
+            delay=delay,
+            checksum=crcb,
             msgmode=msgmode,
             parsebitfield=parsebitfield,
             payload=payload,

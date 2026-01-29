@@ -12,6 +12,7 @@ Created on 26 Jan 2026
 
 import os
 import unittest
+from datetime import datetime, timezone
 import pyunigps.unitypes_core as unt
 import pyunigps.exceptions as une
 from pyunigps.unitypes_core import CV, UNI_MSGIDS
@@ -26,6 +27,9 @@ from pyunigps.unihelpers import (
     bytes2val,
     nomval,
     key_from_val,
+    timeinfo2bytes,
+    timeinfo2vals,
+    utc2wnotow,
 )
 
 
@@ -62,7 +66,7 @@ class StaticTest(unittest.TestCase):
             b"\x44\x55",
             b"\xd7\xfc\xb8\x41",
             b"\x1f\xc1\x37\xdd\x9a\x1f\x37\xc0",
-            "test1234",
+            b"test1234",
         ]
         for i, inp in enumerate(INPUTS):
             val, att = inp
@@ -174,6 +178,29 @@ class StaticTest(unittest.TestCase):
         with self.assertRaisesRegex(KeyError, "No key found for value XXXX"):
             res = key_from_val(UNI_MSGIDS, "XXXX")
 
+    def testutc2wnotow(self):
+        dat = datetime(2026, 1, 28, 9, 34, 12, 234000, tzinfo=timezone.utc)
+        wno, tow = utc2wnotow(dat)
+        print(wno, tow)
+        self.assertEqual((wno, tow), (2403, 293652234))
+
+    def testtimeinfo2bytes(self):
+        t = timeinfo2bytes(wno=2406, tow=34675834)
+        # print(t)
+        self.assertEqual(t, b'\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
+        self.assertEqual(len(t), 16)
+        t = timeinfo2bytes(1,1, 2402, 34675834,1,18,23)
+        # print(t)
+        self.assertEqual(t, b'\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
+        self.assertEqual(len(t), 16)
+    
+    def testtimeinfo2vals(self):
+        v = timeinfo2vals(b'\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
+        # print(v)
+        self.assertEqual(v,(1, 0, 2406, 34675834, 0, 0, 0))
+        v = timeinfo2vals(b'\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
+        # print(v)
+        self.assertEqual(v,(1,1, 2402, 34675834,1,18,23))
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
