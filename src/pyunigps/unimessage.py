@@ -10,10 +10,11 @@ Created on 26 Sep 2020
 :license: BSD 3-Clause
 """
 
-# pylint: disable=too-many-positional-arguments, too-many-locals, too-many-arguments
+# pylint: disable=too-many-positional-arguments, too-many-locals, too-many-arguments, too-many-instance-attributes
 
 import struct
 from types import NoneType
+from typing import Literal
 
 from pyunigps.exceptions import UNIMessageError, UNITypeError
 from pyunigps.unihelpers import (
@@ -21,18 +22,20 @@ from pyunigps.unihelpers import (
     bytes2val,
     calc_crc,
     escapeall,
+    header2bytes,
+    msgname2id,
     nomval,
-    timeinfo2bytes,
     utc2wnotow,
     val2bytes,
 )
 from pyunigps.unitypes_core import (
+    BINARY,
+    FREQNO,
     GET,
     POLL,
     SCALROUND,
     SET,
     U1,
-    U2,
     UNI_HDR,
     UNI_MSGIDS,
 )
@@ -46,7 +49,7 @@ class UNIMessage:
 
     def __init__(
         self,
-        msgid: int,
+        msgid: int | str,
         length: int | NoneType = None,
         cpuidle: int = 0,
         timeref: int = 0,
@@ -59,6 +62,7 @@ class UNIMessage:
         checksum: bytes | NoneType = None,
         msgmode: int = GET,
         parsebitfield: bool = True,
+        unimode: Literal["A", "B"] = BINARY,
         **kwargs,
     ):
         """
@@ -70,19 +74,20 @@ class UNIMessage:
         Otherwise, any named attributes will be assigned the value given, all others will
         be assigned a nominal value according to type.
 
-        :param msgid: msgid
+        :param int | str msgid: message id or message name
         :param int | NoneType length: length (will be derived if None)
         :param int cpuidle: header cpuidle
         :param int timeref: header timeref
         :param int timestatus: header timestatus
-        :param int | NoneType wno: header week number
-        :param int | NoneType tow: header time of week
+        :param int | NoneType wno: header week number (defaults to now if None)
+        :param int | NoneType tow: header time of week (defaults to now if None)
         :param int version: header version
         :param int leapsecond: header leapsecond
         :param int delay: header delay
         :param bytes | NoneType checksum: CRC (will be derived if None)
         :param int msgmode: message mode (0 = GET, 1 = SET, 2 = POLL)
         :param bool parsebitfield: 0 = parse as bytes, 1 = parse as individual bits
+        :param Literal["A", "B"] unimode: B = BINARY, A = ASCII
         :param kwargs: optional keywords representing payload attributes
         :raises: UNITypeError, UNIMessageError
         """
@@ -92,6 +97,11 @@ class UNIMessage:
         self.cpuidle = cpuidle
         self._length = length
         self._checksum = checksum  # bytes
+        if isinstance(msgid, str):  # if msgname, convert to msgid
+            mid = msgname2id(msgid)
+            if mid is None:
+                raise UNIMessageError(f"Unknown msgname {msgid}")
+            msgid = mid
         self._msgid = msgid
         self.cpuidle = cpuidle
         self.timeref = timeref
@@ -103,19 +113,10 @@ class UNIMessage:
         self.version = version
         self.leapsecond = leapsecond
         self.delay = delay
-        # serialized version of header time info
-        self._timeinfob = timeinfo2bytes(
-            self.timeref,
-            self.timestatus,
-            self.wno,
-            self.tow,
-            self.version,
-            self.leapsecond,
-            self.delay,
-        )
         self._mode = msgmode
         self._payload = b""
         self._parsebf = parsebitfield  # parsing bitfields Y/N?
+        self._unimode = unimode  # binary or ascii
 
         if msgmode not in (GET, SET, POLL):
             raise UNIMessageError(f"Invalid msgmode {msgmode} - must be 0, 1 or 2")
@@ -226,6 +227,11 @@ class UNIMessage:
         # derive or retrieve number of items in group
         if isinstance(anam, int):  # fixed number of repeats
             gsiz = anam
+        elif anam == FREQNO:  # SATSINFO frequency group (assumes always at least 1)
+            if "payload" in kwargs:
+                gsiz = bytes2val(self._payload[offset + 3 : offset + 4], U1)
+            else:
+                gsiz = kwargs.get(f"{FREQNO}_{index[0]:02d}_01", 1)
         elif anam == "None":  # number of repeats 'variable by size'
             gsiz = self._calc_num_repeats(gdict, self._payload, offset, 0)
         else:  # number of repeats is defined in named attribute
@@ -244,16 +250,14 @@ class UNIMessage:
         return (offset, index)
 
     def _set_attribute_single(
-        self, anam: str, adef: object, offset: int, index: list, **kwargs
+        self, anam: str, adef: str | list, offset: int, index: list, **kwargs
     ) -> int:
         """
         Set individual attribute value, applying scaling where appropriate.
 
         :param str anam: attribute keyword
-        EITHER
-        :param str adef: attribute definition string e.g. 'U002'
-        OR
-        :param list adef: if scaled, list of [attribute type string, scaling factor float]
+        :param str | list adef: attribute definition string e.g. 'U002'
+           or, if scaled, list of [attribute type string, scaling factor float]
         :param int offset: payload offset in bytes
         :param list index: repeating group index array
         :param kwargs: optional payload key/value pairs
@@ -395,11 +399,21 @@ class UNIMessage:
         if self._length is None:
             self._length = len(payload)
         if self._checksum is None:
-            cpuidleb = val2bytes(self.cpuidle, U1)
-            msgidb = val2bytes(self._msgid, U2)
-            lenb = val2bytes(self._length, U2)
             self._checksum = calc_crc(
-                UNI_HDR + cpuidleb + msgidb + lenb + self._timeinfob + payload
+                UNI_HDR
+                + header2bytes(
+                    self._msgid,
+                    self._length,
+                    self.cpuidle,
+                    self.timeref,
+                    self.timestatus,
+                    self.wno,
+                    self.tow,
+                    self.version,
+                    self.leapsecond,
+                    self.delay,
+                )
+                + payload
             )
 
     def _get_dict(self, **kwargs) -> dict:  # pylint: disable=unused-argument
@@ -480,7 +494,7 @@ class UNIMessage:
                 # intended to be character strings
                 if isinstance(val, bytes):
                     val = escapeall(val)
-                stg += att + "=" + str(val).strip(" ")
+                stg += att + "=" + str(val).rstrip()
                 if i < len(self.__dict__) - 1:
                     stg += ", "
         stg += ")>"
@@ -533,12 +547,20 @@ class UNIMessage:
 
         """
 
-        cpuidleb = val2bytes(self.cpuidle, U1)
-        msgidb = val2bytes(self._msgid, U2)
-        lenb = val2bytes(self._length, U2)
-        ser = UNI_HDR + cpuidleb + msgidb + lenb + self._timeinfob
+        hdr = header2bytes(
+            self._msgid,
+            self._length,
+            self.cpuidle,
+            self.timeref,
+            self.timestatus,
+            self.wno,
+            self.tow,
+            self.version,
+            self.leapsecond,
+            self.delay,
+        )
         payloadb = b"" if self._payload is None else self._payload
-        return ser + payloadb + self._checksum
+        return UNI_HDR + hdr + payloadb + self._checksum
 
     @property
     def identity(self) -> str:
@@ -596,3 +618,15 @@ class UNIMessage:
         """
 
         return self._mode
+
+    @property
+    def unimode(self) -> str:
+        """
+        UNI mode getter (B = Binary, A = ASCII).
+
+        :return: unimode
+        :rtype: str
+
+        """
+
+        return self._unimode

@@ -13,24 +13,27 @@ Created on 26 Jan 2026
 import os
 import unittest
 from datetime import datetime, timezone
-import pyunigps.unitypes_core as unt
+
 import pyunigps.exceptions as une
-from pyunigps.unitypes_core import CV, UNI_MSGIDS
+import pyunigps.unitypes_core as unt
 from pyunigps.unihelpers import (
-    calc_crc,
-    escapeall,
     att2idx,
     att2name,
     attsiz,
-    get_bits,
-    val2bytes,
     bytes2val,
-    nomval,
+    calc_crc,
+    escapeall,
+    get_bits,
+    get_parts,
+    header2bytes,
+    header2vals,
     key_from_val,
-    timeinfo2bytes,
-    timeinfo2vals,
+    msgname2id,
+    nomval,
     utc2wnotow,
+    val2bytes,
 )
+from pyunigps.unitypes_core import CV, UNI_MSGIDS
 
 
 class StaticTest(unittest.TestCase):
@@ -53,6 +56,12 @@ class StaticTest(unittest.TestCase):
         # print(escapeall(res))
         self.assertEqual(res, b"\x70\x19\x8f\x95")
 
+    def testmsgname2id(self):
+        self.assertEqual(msgname2id("VERSION"), 17)
+        self.assertEqual(msgname2id("version"), 17)
+        self.assertEqual(msgname2id("PPPNAV"), 1026)
+        self.assertEqual(msgname2id("XXXXX"), None)
+
     def testVal2Bytes(self):  # test conversion of value to bytes
         INPUTS = [
             (2345, unt.U2),
@@ -60,6 +69,7 @@ class StaticTest(unittest.TestCase):
             (23.12345678, unt.R4),
             (-23.12345678912345, unt.R8),
             ("test1234", unt.C8),
+            ("test1234", "C016"),
         ]
         EXPECTED_RESULTS = [
             b"\x29\x09",
@@ -67,11 +77,19 @@ class StaticTest(unittest.TestCase):
             b"\xd7\xfc\xb8\x41",
             b"\x1f\xc1\x37\xdd\x9a\x1f\x37\xc0",
             b"test1234",
+            b"test1234        ",
         ]
         for i, inp in enumerate(INPUTS):
             val, att = inp
             res = val2bytes(val, att)
             self.assertEqual(res, EXPECTED_RESULTS[i])
+
+    def testVal2BytesBadType(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "Attribute type U002 value xxx must be <class 'int'>, not <class 'str'>",
+        ):
+            res = val2bytes("xxx", "U002")
 
     def testVal2BytesInvalid(self):
         with self.assertRaisesRegex(une.UNITypeError, "Unknown attribute type Y002"):
@@ -113,6 +131,7 @@ class StaticTest(unittest.TestCase):
             unt.R4,
             unt.R8,
             unt.C8,
+            "C016",
         ]
         EXPECTED_RESULTS = [
             0,
@@ -120,6 +139,7 @@ class StaticTest(unittest.TestCase):
             0.0,
             0.0,
             "        ",
+            "                ",
         ]
         for i, att in enumerate(INPUTS):
             res = nomval(att)
@@ -181,26 +201,52 @@ class StaticTest(unittest.TestCase):
     def testutc2wnotow(self):
         dat = datetime(2026, 1, 28, 9, 34, 12, 234000, tzinfo=timezone.utc)
         wno, tow = utc2wnotow(dat)
-        print(wno, tow)
+        # print(wno, tow)
         self.assertEqual((wno, tow), (2403, 293652234))
+        wno, tow = utc2wnotow()
+        # print(wno, tow)
+        self.assertIsInstance(wno, int)
+        self.assertIsInstance(tow, int)
 
-    def testtimeinfo2bytes(self):
-        t = timeinfo2bytes(wno=2406, tow=34675834)
-        # print(t)
-        self.assertEqual(t, b'\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
-        self.assertEqual(len(t), 16)
-        t = timeinfo2bytes(1,1, 2402, 34675834,1,18,23)
-        # print(t)
-        self.assertEqual(t, b'\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
-        self.assertEqual(len(t), 16)
-    
-    def testtimeinfo2vals(self):
-        v = timeinfo2vals(b'\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00')
+    def testheader2bytes(self):
+        t = header2bytes(msgid=17, length=308, cpuidle=0, wno=2406, tow=34675834)
+        print(t)
+        self.assertEqual(
+            t,
+            b"\x00\x11\x004\x01\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00",
+        )
+        self.assertEqual(len(t), 21)
+        t = header2bytes(17, 308, 0, 1, 1, 2402, 34675834, 1, 18, 23)
+        print(t)
+        self.assertEqual(
+            t,
+            b"\x00\x11\x004\x01\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00",
+        )
+        self.assertEqual(len(t), 21)
+        t = header2bytes(msgid=17, length=308)  # wno and tow default to now
+        self.assertEqual(len(t), 21)
+
+    def testheader2vals(self):
+        v = header2vals(
+            b"\x00\x11\x004\x01\x01\x00f\tz\x1c\x11\x02\x00\x00\x00\x00\x00\x00\x00\x00"
+        )
         # print(v)
-        self.assertEqual(v,(1, 0, 2406, 34675834, 0, 0, 0))
-        v = timeinfo2vals(b'\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00')
+        self.assertEqual(v, (0, 17, 308, 1, 0, 2406, 34675834, 0, 0, 0, 0))
+        v = header2vals(
+            b"\x00\x11\x004\x01\x01\x01b\tz\x1c\x11\x02\x01\x00\x00\x00\x00\x12\x17\x00"
+        )
         # print(v)
-        self.assertEqual(v,(1,1, 2402, 34675834,1,18,23))
+        self.assertEqual(v, (0, 17, 308, 1, 1, 2402, 34675834, 1, 0, 18, 23))
+
+    def testgetparts(self):
+        MESSAGE = b'#VERSIONA,94,GPS,FINE,2190,117325000,0,0,18,160;"UM982","R4.10Build5251","HRPT00-S10C-P","-","ffff48ffff0fffff","2021/11/26"*e195b254\r\n'
+        BADMESSAGE = b'#VERSIONA,94,GPS,FINE,2190,"HRPT00-S10C-P","-","ffff48ffff0fffff","2021/11/26"\r\n'
+        header, payload, crcb = get_parts(MESSAGE)
+        self.assertEqual(header, ["VERSIONA",'94',"GPS","FINE",'2190','117325000','0','0','18','160'])
+        self.assertEqual(payload, ['"UM982"','"R4.10Build5251"','"HRPT00-S10C-P"','"-"','"ffff48ffff0fffff"','"2021/11/26"'])
+        self.assertEqual(crcb, b'\x54\xb2\x95\xe1')
+        with self.assertRaisesRegex(une.UNIMessageError, 'Badly formed ASCII message #VERSIONA,94,GPS,FINE,2190,"HRPT00-S10C-P","-","ffff48ffff0fffff","2021/11/26"'):
+            get_parts(BADMESSAGE)
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
