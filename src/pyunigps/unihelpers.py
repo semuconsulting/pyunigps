@@ -10,11 +10,15 @@ Created on 6 Oct 2025
 """
 
 import struct
+from datetime import datetime, timezone
+from types import NoneType
 from typing import Any
 
 import pyunigps.exceptions as qge
-from pyunigps.unitypes_core import ATTTYPE, U4
+from pyunigps.unitypes_core import ATTTYPE, U1, U2, U4
 
+GPSEPOCH0 = datetime(1980, 1, 6, tzinfo=timezone.utc)
+# ARC table for CRC calculation in calc_crc
 CRCTABLE = [
     0x00000000,
     0x77073096,
@@ -273,7 +277,6 @@ CRCTABLE = [
     0x5A05DF1B,
     0x2D02EF8D,
 ]
-"""ARC table for CRC calculation in calc_crc"""
 
 
 def att2idx(att: str) -> int | tuple[int]:
@@ -514,9 +517,86 @@ def val2bytes(val: Any, att: str) -> bytes:
     if atttyp(att) == "X":  # byte
         valb = val
     elif atttyp(att) == "C":  # string
-        val = valb.encode("utf-8", errors="backslashreplace")
+        v = val.encode("utf-8", errors="backslashreplace")
+        valb = v + b"\x20" * (attsiz(att) - len(v))  # right pad with spaces
     elif atttyp(att) in ("S", "U"):  # integer
         valb = val.to_bytes(attsiz(att), byteorder="little", signed=atttyp(att) == "S")
     elif atttyp(att) == "R":  # floating point
         valb = struct.pack("<f" if attsiz(att) == 4 else "<d", float(val))
     return valb
+
+
+def utc2wnotow(utc: datetime = datetime.now(tz=timezone.utc)) -> tuple[int, int]:
+    """
+    Get GPS Week number (Wno) and Time of Week (Tow)
+    in milliseconds for given utc datetime.
+
+    GPS Epoch 0 = 6th Jan 1980
+
+    :param datetime dat: calendar date
+    :return: Wno, Tow
+    :rtype: tuple[int,int]
+    """
+
+    ts = (utc - GPSEPOCH0).total_seconds() * 1000
+    wno = int((utc - GPSEPOCH0).days / 7)
+    tow = int(ts - wno * 604800000)
+    return wno, tow
+
+
+def timeinfo2vals(timeinfo: bytes) -> tuple:
+    """
+    Convert timeinfo bytes from header to values
+
+    :param bytes timeinfo: timeinfo from header
+    :return: individual values
+    :rtype: tuple
+    """
+
+    timeref = bytes2val(timeinfo[0:1], U1)
+    timestatus = bytes2val(timeinfo[1:2], U1)
+    wno = bytes2val(timeinfo[2:4], U2)
+    tow = bytes2val(timeinfo[4:8], U4)
+    version = bytes2val(timeinfo[8:12], U4)
+    # reserved = bytes2val(timeinfo[12:13], U1)
+    leapsecond = bytes2val(timeinfo[13:14], U1)
+    delay = bytes2val(timeinfo[14:16], U2)
+    return timeref, timestatus, wno, tow, version, leapsecond, delay
+
+
+def timeinfo2bytes(
+    timeref: int = 1,
+    timestatus: int = 0,
+    wno: int | NoneType = None,
+    tow: int | NoneType = None,
+    version: int = 0,
+    leapsecond: int = 0,
+    delay: int = 0,
+) -> bytes:
+    """
+    Convert timeinfo values to header bytes
+
+    :param int timeref: Description
+    :param int timestatus: Description
+    :param int | NoneType wno: Description
+    :param int | NoneType tow: Description
+    :param int version: Description
+    :param int leapsecond: Description
+    :param int delay: Description
+    :return: timeinfo as bytes
+    :rtype: bytes
+    """
+
+    if wno is None or tow is None:
+        wno, tow = utc2wnotow(datetime.now(tz=timezone.utc))
+
+    return (
+        val2bytes(timeref, U1)
+        + val2bytes(timestatus, U1)
+        + val2bytes(wno, U2)
+        + val2bytes(tow, U4)
+        + val2bytes(version, U4)
+        + val2bytes(0, U1)
+        + val2bytes(leapsecond, U1)
+        + val2bytes(delay, U2)
+    )

@@ -22,6 +22,8 @@ from pyunigps.unihelpers import (
     calc_crc,
     escapeall,
     nomval,
+    timeinfo2bytes,
+    utc2wnotow,
     val2bytes,
 )
 from pyunigps.unitypes_core import (
@@ -31,7 +33,6 @@ from pyunigps.unitypes_core import (
     SET,
     U1,
     U2,
-    U4,
     UNI_HDR,
     UNI_MSGIDS,
 )
@@ -43,20 +44,24 @@ from pyunigps.unitypes_set import UNI_PAYLOADS_SET
 class UNIMessage:
     """UNI Message Class."""
 
-    # TODO NB __init__ args may change in final version
     def __init__(
         self,
         msgid: int,
-        verinfo: bytes,
         length: int | NoneType = None,
-        checksum: bytes | NoneType = None,
         cpuidle: int = 0,
+        timeref: int = 0,
+        timestatus: int = 0,
+        wno: int | NoneType = None,
+        tow: int | NoneType = None,
+        version: int = 0,
+        leapsecond: int = 0,
+        delay: int = 0,
+        checksum: bytes | NoneType = None,
         msgmode: int = GET,
         parsebitfield: bool = True,
         **kwargs,
     ):
-        """Constructor.
-
+        """
         If no keyword parms are passed, the payload is taken to be empty.
 
         If 'payload' is passed as a keyword parm, this is taken to contain the complete
@@ -65,34 +70,51 @@ class UNIMessage:
         Otherwise, any named attributes will be assigned the value given, all others will
         be assigned a nominal value according to type.
 
-        :param int msgID: message ID
-        :param int | NoneType length: payload length (will be derived if None)
-        :param bytes verinfo: version and time info
-        :param bytes | NoneType checksum: CRC checksum (will be derived if None)
-        :param int cpuidle: cpu idle time
-        :param int msgmode: message mode (0=GET, 1=SET, 2=POLL)
-        :param bool parsebitfield: parse bitfields ('X' type attributes) Y/N
-        :param kwargs: optional payload keyword arguments
-        :raises: UNIMessageError
+        :param msgid: msgid
+        :param int | NoneType length: length (will be derived if None)
+        :param int cpuidle: header cpuidle
+        :param int timeref: header timeref
+        :param int timestatus: header timestatus
+        :param int | NoneType wno: header week number
+        :param int | NoneType tow: header time of week
+        :param int version: header version
+        :param int leapsecond: header leapsecond
+        :param int delay: header delay
+        :param bytes | NoneType checksum: CRC (will be derived if None)
+        :param int msgmode: message mode (0 = GET, 1 = SET, 2 = POLL)
+        :param bool parsebitfield: 0 = parse as bytes, 1 = parse as individual bits
+        :param kwargs: optional keywords representing payload attributes
+        :raises: UNITypeError, UNIMessageError
         """
 
         # object is mutable during initialisation only
         super().__setattr__("_immutable", False)
-        self._mode = msgmode
-        self._payload = b""
+        self.cpuidle = cpuidle
         self._length = length
         self._checksum = checksum  # bytes
-        self._cpuidle = cpuidle
-        self._verinfo = verinfo
         self._msgid = msgid
-        self._timeref = bytes2val(verinfo[0:1], U1)
-        self._timestatus = bytes2val(verinfo[1:2], U1)
-        self._wno = bytes2val(verinfo[2:4], U2)
-        self._tow = bytes2val(verinfo[4:8], U4)
-        self._version = bytes2val(verinfo[8:11], U4)
-        # reserved = verinfo[11:12]
-        self._leapsec = bytes2val(verinfo[12:13], U1)
-        self._delay = bytes2val(verinfo[13:15], U2)
+        self.cpuidle = cpuidle
+        self.timeref = timeref
+        self.timestatus = timestatus
+        if wno is None or tow is None:  # default to now
+            wno, tow = utc2wnotow()
+        self.wno = wno
+        self.tow = tow
+        self.version = version
+        self.leapsecond = leapsecond
+        self.delay = delay
+        # serialized version of header time info
+        self._timeinfob = timeinfo2bytes(
+            self.timeref,
+            self.timestatus,
+            self.wno,
+            self.tow,
+            self.version,
+            self.leapsecond,
+            self.delay,
+        )
+        self._mode = msgmode
+        self._payload = b""
         self._parsebf = parsebitfield  # parsing bitfields Y/N?
 
         if msgmode not in (GET, SET, POLL):
@@ -373,11 +395,11 @@ class UNIMessage:
         if self._length is None:
             self._length = len(payload)
         if self._checksum is None:
-            cpuidleb = val2bytes(self._cpuidle, U1)
+            cpuidleb = val2bytes(self.cpuidle, U1)
             msgidb = val2bytes(self._msgid, U2)
             lenb = val2bytes(self._length, U2)
             self._checksum = calc_crc(
-                UNI_HDR + cpuidleb + msgidb + lenb + self._verinfo + payload
+                UNI_HDR + cpuidleb + msgidb + lenb + self._timeinfob + payload
             )
 
     def _get_dict(self, **kwargs) -> dict:  # pylint: disable=unused-argument
@@ -458,7 +480,7 @@ class UNIMessage:
                 # intended to be character strings
                 if isinstance(val, bytes):
                     val = escapeall(val)
-                stg += att + "=" + str(val)
+                stg += att + "=" + str(val).strip(" ")
                 if i < len(self.__dict__) - 1:
                     stg += ", "
         stg += ")>"
@@ -477,8 +499,9 @@ class UNIMessage:
         """
 
         rep = (
-            f"UNIMessage({self._msgid}, {escapeall(self._verinfo)}, {self._length}, "
-            f"{escapeall(self._checksum)}, {self._cpuidle}, {self._mode}"
+            f"UNIMessage({self._msgid}, {self._length}, {self.cpuidle}, {self.timeref}, "
+            f"{self.timestatus},{self.wno}, {self.tow}, {self.version}, {self.leapsecond}, "
+            f"{self.delay}, {self.checksum}, {self._mode}, {self._parsebf}"
         )
         if self._payload is not None:
             rep += f", payload={self._payload})"
@@ -510,15 +533,12 @@ class UNIMessage:
 
         """
 
-        return (
-            UNI_HDR
-            + self._cpuidle
-            + self._msgid
-            + self._length
-            + self._verinfo
-            + (b"" if self._payload is None else self._payload)
-            + self._checksum
-        )
+        cpuidleb = val2bytes(self.cpuidle, U1)
+        msgidb = val2bytes(self._msgid, U2)
+        lenb = val2bytes(self._length, U2)
+        ser = UNI_HDR + cpuidleb + msgidb + lenb + self._timeinfob
+        payloadb = b"" if self._payload is None else self._payload
+        return ser + payloadb + self._checksum
 
     @property
     def identity(self) -> str:
@@ -529,7 +549,7 @@ class UNIMessage:
         to a nominal payload definition UNI-NOMINAL and
         the term 'NOMINAL' is appended to the identity.
 
-        :return: message identity e.g. 'RAW-HASE6'
+        :return: message identity e.g. 'OBSVMCMP'
         :rtype: str
 
         """
@@ -540,99 +560,6 @@ class UNIMessage:
             # unrecognised Unicore message, parsed to UNI-NOMINAL definition
             umsg_name = f"{int.from_bytes(self._msgid, 'little'):02x}-NOMINAL"
         return umsg_name
-
-    @property
-    def msg_id(self) -> int:
-        """
-        Message id getter.
-
-        :return: message id as bytes
-        :rtype: int
-
-        """
-
-        return self._msgid
-
-    @property
-    def timeref(self) -> int:
-        """
-        Message timeref getter.
-
-        :return: Time ref
-        :rtype: int
-
-        """
-        return self._timeref
-
-    @property
-    def timestatus(self) -> int:
-        """
-        Time status getter.
-
-        :return: time status as bytes
-        :rtype: int
-
-        """
-
-        return self._timestatus
-
-    @property
-    def wno(self) -> int:
-        """
-        Message group getter.
-
-        :return: message class as bytes
-        :rtype: int
-
-        """
-        return self._wno
-
-    @property
-    def tow(self) -> float:
-        """
-        Time of Week getter.
-
-        :return: tow
-        :rtype: float
-
-        """
-
-        return self._tow
-
-    @property
-    def version(self) -> int:
-        """
-        Message version getter.
-
-        :return: version
-        :rtype: int
-
-        """
-        return self._version
-
-    @property
-    def leapsec(self) -> int:
-        """
-        Leap second getter.
-
-        :return: leapsec
-        :rtype: int
-
-        """
-
-        return self._leapsec
-
-    @property
-    def length(self) -> int:
-        """
-        Payload length getter.
-
-        :return: payload length as integer
-        :rtype: int
-
-        """
-
-        return self._length
 
     @property
     def checksum(self) -> bytes:

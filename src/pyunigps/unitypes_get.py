@@ -18,7 +18,14 @@ from pyunigps.unitypes_core import (
 UNI_PAYLOADS_GET = {
     # TODO add payload definitions...
     # TODO order alphabetically
-    "VERSION": {},
+    "VERSION": {
+        "device": "C004",
+        "swversion": "C033",
+        "authtype": "C129",
+        "psn": "C066",
+        "efuseid": "C033",
+        "comptime": "C043",
+    },
     "OBSVM": {},
     "OBSVH": {},
     "OBSVMCMP": {},
