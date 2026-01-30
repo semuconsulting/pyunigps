@@ -73,8 +73,8 @@ class UNIMessage:
         :param int cpuidle: header cpuidle
         :param int timeref: header timeref
         :param int timestatus: header timestatus
-        :param int | NoneType wno: header week number
-        :param int | NoneType tow: header time of week
+        :param int | NoneType wno: header week number (defaults to now if None)
+        :param int | NoneType tow: header time of week (defaults to now if None)
         :param int version: header version
         :param int leapsecond: header leapsecond
         :param int delay: header delay

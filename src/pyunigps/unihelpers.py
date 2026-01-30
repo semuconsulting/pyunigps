@@ -441,19 +441,19 @@ def header2bytes(
     :param int msgid: msgid
     :param int length: payload length
     :param int cpuidle: cpuidle
-    :param int timeref: Description
-    :param int timestatus: Description
-    :param int | NoneType wno: Description
-    :param int | NoneType tow: Description
-    :param int version: Description
-    :param int leapsecond: Description
-    :param int delay: Description
+    :param int timeref: time reference (GPS/BDS)
+    :param int timestatus: timestatus
+    :param int | NoneType wno: week no (defaults to now if None)
+    :param int | NoneType tow: time of week (defaults to now if None)
+    :param int version: message version
+    :param int leapsecond: leap second
+    :param int delay: delay in ms
     :return: header as bytes
     :rtype: bytes
     """
 
     if wno is None or tow is None:
-        wno, tow = utc2wnotow(datetime.now(tz=timezone.utc))
+        wno, tow = utc2wnotow()
     return struct.pack(
         "<BHHBBHLLBBH",
         cpuidle,
@@ -542,18 +542,20 @@ def nomval(att: str) -> Any:
     return val
 
 
-def utc2wnotow(utc: datetime = datetime.now(tz=timezone.utc)) -> tuple[int, int]:
+def utc2wnotow(utc: datetime | NoneType = None) -> tuple[int, int]:
     """
-    Get GPS Week number (Wno) and Time of Week (Tow)
+    Get GPS Week number (wno) and Time of Week (tow)
     in milliseconds for given utc datetime.
 
     GPS Epoch 0 = 6th Jan 1980
 
-    :param datetime dat: calendar date
-    :return: Wno, Tow
+    :param datetime | NoneType utc: utc datetime (defaults to now if None)
+    :return: wno, tow
     :rtype: tuple[int,int]
     """
 
+    if utc is None:
+        utc = datetime.now(tz=timezone.utc)
     ts = (utc - GPSEPOCH0).total_seconds() * 1000
     wno = int((utc - GPSEPOCH0).days / 7)
     tow = int(ts - wno * 604800000)

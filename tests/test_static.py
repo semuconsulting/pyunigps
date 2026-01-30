@@ -185,8 +185,12 @@ class StaticTest(unittest.TestCase):
     def testutc2wnotow(self):
         dat = datetime(2026, 1, 28, 9, 34, 12, 234000, tzinfo=timezone.utc)
         wno, tow = utc2wnotow(dat)
-        print(wno, tow)
+        # print(wno, tow)
         self.assertEqual((wno, tow), (2403, 293652234))
+        wno, tow = utc2wnotow()
+        # print(wno, tow)
+        self.assertIsInstance(wno, int)
+        self.assertIsInstance(tow, int)
 
     def testheader2bytes(self):
         t = header2bytes(msgid=17, length=308, cpuidle=0, wno=2406, tow=34675834)

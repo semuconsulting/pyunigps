@@ -10,10 +10,16 @@ https://www.ardusimple.com/wp-content/uploads/2023/04/Unicore-Reference-Commands
 """
 
 from pyunigps.unitypes_core import (
+    R4,
+    U1,
     U2,
     U3,
     U4,
+    U5,
+    U6,
+    U8,
     X1,
+    X4,
 )
 
 UNI_PAYLOADS_GET = {
@@ -27,8 +33,42 @@ UNI_PAYLOADS_GET = {
         "efuseid": "C033",
         "comptime": "C043",
     },
-    "OBSVM": {},
-    "OBSVH": {},
+    "OBSVM": {
+        "numobs": U4,
+        "group": (
+            "numobs",
+            {
+                "sysfreq": U2,
+                "prn": U2,
+                "psr": U8,
+                "adr": U8,
+                "psrstd": [U2, 100],
+                "adrstd": [U2, 10000],
+                "doppfreq": R4,
+                "cno": [U2, 100],
+                "reserved1": U2,
+                "locktime": R4,
+                "trstatus": (
+                    X4,
+                    {
+                        "reserved2": U5,
+                        "svchan": U5,
+                        "cpsflag": U1,
+                        "reserved3": U1,
+                        "psrflag": U1,
+                        "reserved4": U3,
+                        "gnss": U3,
+                        "reserved5": U2,
+                        "sigtype": U4,
+                        "sigcode": U1,
+                        "L2Cflag": U1,
+                        "reserved6": U5,
+                    },
+                ),
+            },
+        ),
+    },
+    # "OBSVH": {} # duplicate of OVSVM, see below
     "OBSVMCMP": {},
     "OBSVHCMP": {},
     "OBSVBASE": {},
@@ -136,3 +176,6 @@ UNI_PAYLOADS_GET = {
         )
     },
 }
+
+# duplicated values
+UNI_PAYLOADS_GET["OBSVH"] = UNI_PAYLOADS_GET["OBSVM"]
