@@ -39,7 +39,7 @@ Sphinx API Documentation in HTML format is available at [https://www.semuconsult
 
 Contributions welcome - please refer to [CONTRIBUTING.MD](https://github.com/semuconsulting/pyunigps/blob/master/CONTRIBUTING.md).
 
-[Bug reports](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/bug_report.md) and [Feature requests](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/feature_request.md) - please use the templates provided. For general queries and advice, post a message to one of the [pynmeagps Discussions](https://github.com/semuconsulting/pyunigps/discussions) channels.
+[Bug reports](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/bug_report.md) and [Feature requests](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/feature_request.md) - please use the templates provided. For general queries and advice, post a message to one of the [pyunigps Discussions](https://github.com/semuconsulting/pyunigps/discussions) channels.
 
 ![No Copilot](https://github.com/semuconsulting/PyGPSClient/blob/master/images/nocopilot100.png?raw=true)
 
@@ -66,7 +66,7 @@ source env/bin/activate # (or env\Scripts\activate on Windows)
 python3 -m pip install --upgrade pyunigps
 ```
 
-For [Conda](https://docs.conda.io/en/latest/) users, `pyunigps` will in due course be made available from [conda forge](https://github.com/conda-forge/pyunigps-feedstock):
+For [Conda](https://docs.conda.io/en/latest/) users, `pyunigps` is available from [conda forge](https://github.com/conda-forge/pyunigps-feedstock):
 
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/pyunigps/badges/version.svg)](https://anaconda.org/conda-forge/pyunigps)
 [![Anaconda-Server Badge](https://img.shields.io/conda/dn/conda-forge/pyunigps)](https://anaconda.org/conda-forge/pyunigps)
@@ -249,6 +249,7 @@ The message payload can be defined via keyword arguments in one of three ways:
 1. A single keyword argument of `payload` containing the full payload as a sequence of bytes (any other keyword arguments will be ignored). **NB** the `payload` keyword argument *must* be used for message types which have a 'variable by size' repeating group.
 2. One or more keyword arguments corresponding to individual message attributes. Any attributes not explicitly provided as keyword arguments will be set to a nominal value according to their type.
 3. If no keyword arguments are passed, the payload is assumed to be null.
+4. If the `wno` or `tow` arguments are omitted, they will default to the current datetime.
 
 Example A - generate a VERSION message from individual keyword arguments:
 

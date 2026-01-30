@@ -26,10 +26,11 @@ jobs:
         run: pylint -E src
       - name: Security vulnerability analysis with bandit
         run: bandit -c pyproject.toml -r .
-      # - name: Generate test coverage report
-      #   run: pytest
-      # - name: "Upload coverage to Codecov"
-      #   uses: codecov/codecov-action@v4
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }} # supposedly not required for public repos
-      #     fail_ci_if_error: true
+      - name: Generate test coverage report
+        run: pytest
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # supposedly not required for public repos
+          slug: semuconsulting/pyunigps
+          fail_ci_if_error: true
