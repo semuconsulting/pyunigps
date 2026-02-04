@@ -15,7 +15,7 @@ pyunigps
 
 # WORK IN PROGRESS - NOT YET FOR PRODUCTION USE
 
-`pyunigps` is an original Python 3 parser for the UNI &copy; protocol. UNI is our term for the proprietary binary protocol implemented on Unicore &trade; GNSS receiver modules. `pyunigps` can also parse NMEA 0183 &copy; and RTCM3 &copy; protocols via the underlying [`pynmeagps`](https://github.com/semuconsulting/pynmeagps) and [`pyrtcm`](https://github.com/semuconsulting/pyrtcm) packages from the same author - hence it covers all the protocols that Unicore UNI GNSS receivers are capable of outputting.
+`pyunigps` is an original Python 3 parser for the UNI &copy; protocol. UNI is our term for the proprietary binary and ASCII protocols implemented on Unicore &trade; GNSS receiver modules. `pyunigps` can also parse NMEA 0183 &copy; and RTCM3 &copy; protocols via the underlying [`pynmeagps`](https://github.com/semuconsulting/pynmeagps) and [`pyrtcm`](https://github.com/semuconsulting/pyrtcm) packages from the same author - hence it covers all the protocols that Unicore UNI GNSS receivers are capable of outputting.
 
 The `pyunigps` homepage is located at [https://github.com/semuconsulting/pyunigps](https://github.com/semuconsulting/pyunigps).
 
@@ -32,14 +32,13 @@ This is an independent project and we have no affiliation whatsoever with Unicor
 ![Contributors](https://img.shields.io/github/contributors/semuconsulting/pyunigps.svg)
 ![Open Issues](https://img.shields.io/github/issues-raw/semuconsulting/pyunigps)
 
-This pre-alpha release implements functional UNI parse and construct methods via UNIReader and UNIMessage classes, but
-does not yet include all 79 documented UNI payload definitions. These are on the backlog and will be completed and tested as and when time permits. Refer to [UNI_MSGIDS in unitypes_core.py](https://github.com/semuconsulting/pyunigps/blob/main/src/pyunigps/unitypes_core.py#L86) for the complete list of message definitions currently on the backlog. UNI protocol information sourced from public domain Unicore GNSS Protocol Specification © 2023, Unicore.
+This Alpha implements a comprehensive set of messages for Unicore "NebulasIV" High Precision GPS/GNSS devices, which includes the UM96n and UM98n series, but is readily [extensible](#extensibility). The initial Alpha will deliver parsing of binary UNI messages; a later iteration will also support parsing of ASCII UNI messages (*both will produce binary UNIMessage objects*). Refer to [UNI_MSGIDS in unitypes_core.py](https://github.com/semuconsulting/pyunigps/blob/main/src/pyunigps/unitypes_core.py#L86) for the complete list of message definitions currently defined. UNI protocol information sourced from public domain Unicore "NebulasIV" GNSS Protocol Specification © 2023, Unicore.
 
 Sphinx API Documentation in HTML format is available at [https://www.semuconsulting.com/pyunigps/](https://www.semuconsulting.com/pyunigps/).
 
 Contributions welcome - please refer to [CONTRIBUTING.MD](https://github.com/semuconsulting/pyunigps/blob/master/CONTRIBUTING.md).
 
-[Bug reports](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/bug_report.md) and [Feature requests](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/feature_request.md) - please use the templates provided. For general queries and advice, post a message to one of the [pynmeagps Discussions](https://github.com/semuconsulting/pyunigps/discussions) channels.
+[Bug reports](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/bug_report.md) and [Feature requests](https://github.com/semuconsulting/pyunigps/blob/master/.github/ISSUE_TEMPLATE/feature_request.md) - please use the templates provided. For general queries and advice, post a message to one of the [pyunigps Discussions](https://github.com/semuconsulting/pyunigps/discussions) channels.
 
 ![No Copilot](https://github.com/semuconsulting/PyGPSClient/blob/master/images/nocopilot100.png?raw=true)
 
@@ -66,7 +65,7 @@ source env/bin/activate # (or env\Scripts\activate on Windows)
 python3 -m pip install --upgrade pyunigps
 ```
 
-For [Conda](https://docs.conda.io/en/latest/) users, `pyunigps` will in due course be made available from [conda forge](https://github.com/conda-forge/pyunigps-feedstock):
+For [Conda](https://docs.conda.io/en/latest/) users, `pyunigps` is available from [conda forge](https://github.com/conda-forge/pyunigps-feedstock):
 
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/pyunigps/badges/version.svg)](https://anaconda.org/conda-forge/pyunigps)
 [![Anaconda-Server Badge](https://img.shields.io/conda/dn/conda-forge/pyunigps)](https://anaconda.org/conda-forge/pyunigps)
@@ -106,7 +105,7 @@ Individual UNI messages can then be read using the `UNIReader.read()` function, 
 
 The constructor accepts the following optional keyword arguments:
 
-* `protfilter`: `NMEA_PROTOCOL` (1), `UNI_PROTOCOL` (2), `RTCM3_PROTOCOL` (4). Can be OR'd; default is `NMEA_PROTOCOL | UNI_PROTOCOL | RTCM3_PROTOCOL` (7)
+* `protfilter`: `NMEA_PROTOCOL` (1), `UNI_PROTOCOL` (2), `RTCM3_PROTOCOL` (4), `UNI_ASCII_PROTOCOL` (8). Can be OR'd; default is `NMEA_PROTOCOL | UNI_PROTOCOL | RTCM3_PROTOCOL` (7)
 * `quitonerror`: `ERR_IGNORE` (0) = ignore errors, `ERR_LOG` (1) = log errors and continue (default), `ERR_RAISE` (2) = (re)raise errors and terminate
 * `validate`: `VALCKSUM` (0x01) = validate checksum (default), `VALNONE` (0x00) = ignore invalid checksum or length
 * `parsebitfield`: 1 = parse bitfields ('X' type properties) as individual bit flags, where defined (default), 0 = leave bitfields as byte sequences
@@ -131,7 +130,7 @@ with Serial("/dev/ttyACM0", 115200, timeout=3) as stream:
         print(parsed_data)
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
+<UNI(SATSINFO, cpuidle=96, timeref=1, timestatus=1, wno=2215, tow=367199000, version=0, leapsecond=18, delay=16, numsat=50, reserved1=0, reserved2=0, reserved3=0, L1B1IE1=1, L2CL2B2IE5b=1, L5B3IE5aL5=0, B1CL1C=1, B2aG3E6=0, B2bL2P=1, prn_01=2, azi_01=302, elev_01=51, sysstatus_01_01=0, cno_01_01=45, freqstatus_01_01=0, freqno_01_01=2, sysstatus_01_02=0, cno_01_02=42, freqstatus_01_02=9, freqno_01_02=2, ... prn_50=36, azi_50=286, elev_50=19, sysstatus_50_01=3, cno_50_01=34, freqstatus_50_01=2, freqno_50_01=3, sysstatus_50_02=3, cno_50_02=42, freqstatus_50_02=17, freqno_50_02=3, sysstatus_50_03=3, cno_50_03=38, freqstatus_50_03=12, freqno_50_03=3)>
 ```
 
 Example B - File input (using iterator). This will only output UNI data, and fail on any error:
@@ -146,7 +145,7 @@ with open("pygpsdata_u980.log", "rb") as stream:
         print(parsed_data)
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)> 
+<UNI(SATSINFO, cpuidle=96, timeref=1, timestatus=1, wno=2215, tow=367199000, version=0, leapsecond=18, delay=16, numsat=50, reserved1=0, reserved2=0, reserved3=0, L1B1IE1=1, L2CL2B2IE5b=1, L5B3IE5aL5=0, B1CL1C=1, B2aG3E6=0, B2bL2P=1, prn_01=2, azi_01=302, elev_01=51, sysstatus_01_01=0, cno_01_01=45, freqstatus_01_01=0, freqno_01_01=2, sysstatus_01_02=0, cno_01_02=42, freqstatus_01_02=9, freqno_01_02=2, ... prn_50=36, azi_50=286, elev_50=19, sysstatus_50_01=3, cno_50_01=34, freqstatus_50_01=2, freqno_50_01=3, sysstatus_50_02=3, cno_50_02=42, freqstatus_50_02=17, freqno_50_02=3, sysstatus_50_03=3, cno_50_03=38, freqstatus_50_03=12, freqno_50_03=3)>
 ```
 
 Example C - Socket input (using iterator). This will output UNI, NMEA and RTCM3 data, and ignore any errors:
@@ -175,7 +174,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as stream:
 
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
+<UNI(SATSINFO, cpuidle=96, timeref=1, timestatus=1, wno=2215, tow=367199000, version=0, leapsecond=18, delay=16, numsat=50, reserved1=0, reserved2=0, reserved3=0, L1B1IE1=1, L2CL2B2IE5b=1, L5B3IE5aL5=0, B1CL1C=1, B2aG3E6=0, B2bL2P=1, prn_01=2, azi_01=302, elev_01=51, sysstatus_01_01=0, cno_01_01=45, freqstatus_01_01=0, freqno_01_01=2, sysstatus_01_02=0, cno_01_02=42, freqstatus_01_02=9, freqno_01_02=2, ... prn_50=36, azi_50=286, elev_50=19, sysstatus_50_01=3, cno_50_01=34, freqstatus_50_01=2, freqno_50_01=3, sysstatus_50_02=3, cno_50_02=42, freqstatus_50_02=17, freqno_50_02=3, sysstatus_50_03=3, cno_50_03=38, freqstatus_50_03=12, freqno_50_03=3)>
 ```
 
 ---
@@ -209,21 +208,25 @@ msg = UNIReader.parse(
 print(msg)
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
+<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=18, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
 ```
 
-The `UNIMessage` object exposes different public attributes depending on its message type or 'identity',
-e.g. the `VERSION` message has the following attributes:
+The `UNIMessage` object exposes different public attributes depending on its message type or 'identity'. Attributes which are enumerations may have corresponding decodes in `pyunigps.unitypes_decodes`. E.g. the `VERSION` message has the following attributes:
 
 ```python
+from pyunigps import DEVICE
 print(msg)
 print(msg.identity)
+print(msg.device)
+print(DEVICE[msg.device])
 print(swversion)
 print(comptime)
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
+<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=18, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
 VERSION
+18
+UM980
 R4.10Build5251
 2021/11/26
 ```
@@ -249,6 +252,7 @@ The message payload can be defined via keyword arguments in one of three ways:
 1. A single keyword argument of `payload` containing the full payload as a sequence of bytes (any other keyword arguments will be ignored). **NB** the `payload` keyword argument *must* be used for message types which have a 'variable by size' repeating group.
 2. One or more keyword arguments corresponding to individual message attributes. Any attributes not explicitly provided as keyword arguments will be set to a nominal value according to their type.
 3. If no keyword arguments are passed, the payload is assumed to be null.
+4. If the `wno` or `tow` arguments are omitted, they will default to the current datetime.
 
 Example A - generate a VERSION message from individual keyword arguments:
 
@@ -258,7 +262,7 @@ msg = UNIMessage(
     msgid=17,
     wno=2406,
     tow=34534543,
-    device="M982",
+    device=18,
     swversion="R4.10Build5251",
     authtype="HRPT00-S10C-P",
     psn="-",
@@ -268,7 +272,7 @@ msg = UNIMessage(
 print(msg)
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
+<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=18, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
 ```
 
 ---
@@ -288,8 +292,8 @@ print(output)
 serialOut.write(output)
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
-b'\xaaD\xb5\x00\x11\x004\x01\x00\x00f\t\x8f\xf4\x0e\x02\x00\x00\x00\x00\x00\x00\x00\x00M982R4.10Build5251                   HRPT00-S10C-P                                                                                                                    -                                                                 ffff48ffff0fffff                 2021/11/26                                 #\x87\x83\xb9'  
+<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=18, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
+b'\xaaD\xb5\x00\x11\x004\x01\x00\x00f\t\x8f\xf4\x0e\x02\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00R4.10Build5251                   HRPT00-S10C-P                                                                                                                    -                                                                 ffff48ffff0fffff                 2021/11/26                                 \x11t\x19\x1f'
 ```
 
 ---

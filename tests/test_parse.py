@@ -10,32 +10,25 @@ Created on 26 Jan 2026
 
 # pylint: disable=line-too-long, invalid-name, missing-docstring, no-member
 
-import sys
 import os
+import sys
 import unittest
-from io import StringIO, BytesIO
-from logging import ERROR
+from io import BytesIO, StringIO
 
+import pyunigps.exceptions as une
 from pyunigps import (
-    UNIReader,
-    UNIMessage,
-    SET,
-    GET,
-    POLL,
-    UNI_HDR,
-    VALCKSUM,
-    VALNONE,
     ERR_RAISE,
+    GET,
     NMEA_PROTOCOL,
+    POLL,
     RTCM3_PROTOCOL,
     UNI_PROTOCOL,
-    UNIMessageError,
-    UNIParseError,
-    UNIStreamError,
-    escapeall,
+    UNI_ASCII_PROTOCOL,
+    VALCKSUM,
+    UNIMessage,
+    UNIReader,
 )
-import pyunigps.unitypes_core as unt
-import pyunigps.exceptions as une
+from pyunigps.unihelpers import isvalid_checksum
 
 DIRNAME = os.path.dirname(__file__)
 
@@ -67,11 +60,11 @@ class StreamTest(unittest.TestCase):
     def testparse(self):
         DATA = [
             b"\xaa\x44\xb5\x00\xe8\xff\x05\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66\x01\x02\x03\x04\x05\xc1\xff\xd2\xaa",
-            b"\xaa\x44\xb5\x00\xea\xff\x07\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x00\x11\x22\x33\x44\x55\x66\x01\x02\x03\x04\x05\x06\x07\xaa\x81\xa3\x7a",
+            b'\xaaD\xb5\x00\xea\xff\x14\x00\x01\x00f\t\xaa\xdd\x13\x02\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00A\x03\x00\x08\x00"\x00\x0f\x007\x00\x17\x000\x00\xa2_\x8a\xd4',
         ]
         EXPECTED_PARSED = [
             "<UNI(TEST12, cpuidle=0, timeref=17, timestatus=34, wno=17459, tow=2289526357, version=571539609, leapsecond=68, delay=26197, data=197121, mode=1284)>",
-            "<UNI(TEST14, cpuidle=0, timeref=17, timestatus=34, wno=17459, tow=2289526357, version=571539609, leapsecond=68, delay=26197, data=197121, mode=1284, status=1798)>",
+            "<UNI(TEST14, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=0, mode=0, active=1, jamming=0, validpos=1, numSV=3, svid_01=8, cno_01=34, svid_02=15, cno_02=55, svid_03=23, cno_03=48)>",
         ]
         stream = b""
         for msg in DATA:
@@ -81,10 +74,33 @@ class StreamTest(unittest.TestCase):
         for raw, parsed in unr:
             # print(f'"{parsed}",')
             self.assertEqual(str(parsed), EXPECTED_PARSED[i])
+            self.assertEqual(parsed.msgmode, 0)
+            self.assertEqual(parsed.unimode, "B")
+            self.assertEqual(isvalid_checksum(raw), True)
             i += 1
         self.assertEqual(i, len(DATA))
 
-    def testconstruct(self):
+    def testparseSATSINFO(self):
+        DATA = [
+            b"\xaaD\xb5`L\x08\xf6\x02\x01\x01\xa7\x08\x18\x03\xe3\x15\x00\x00\x00\x00\x00\x12\x10\x002\x00\x00\x00\x00+\x02.\x013\x00-\x00\x02\x00*\t\x02\x040\x00\x11\x00%\x00\x03\x00+\x0e\x03\x00'\t\x03\x05\xe1\x00\x0e\x00*\x00\x02\x00%\t\x02\x06#\x00@\x00/\x00\x03\x004\x0e\x03\x000\t\x03\tP\x00!\x00*\x00\x03\x00,\x0e\x03\x00(\t\x03\x0b,\x018\x00.\x00\x03\x002\x0e\x03\x00.\t\x03\x0c\x15\x01%\x00*\x00\x02\x00)\t\x02\x11\x86\x00\x1f\x00,\x00\x02\x00)\t\x02\x13\x82\x005\x00.\x00\x02\x00+\t\x02\x14\xe8\x00/\x00.\x00\x02\x00*\t\x02\x19<\x01\x0f\x00&\x00\x03\x00-\x0e\x03\x00(\t\x03\x1c\x00\x00\x00\x00%\x00\x02\x00\x1f\t\x02\xc2\xaa\x00\x08\x05&\x00\x03\x05)\x0e\x03\x05%\t\x03\xc3p\x00C\x05-\x00\x03\x051\x0e\x03\x05/\t\x03\xc4\x84\x00=\x05*\x00\x03\x050\x0e\x03\x05.\t\x03\xc7\xa3\x00+\x05$\x00\x03\x05.\x0e\x03\x05,\t\x03't\x00@\x01+\x00\x02\x011\x05\x027<\x01\x1e\x01+\x00\x02\x01.\x05\x024\xf2\x00\n\x01'\x00\x02\x01'\x05\x02&#\x00\x1c\x01(\x00\x02\x01)\x05\x02=]\x00\x1d\x01*\x00\x02\x01-\x05\x026\x16\x00>\x01/\x00\x02\x012\x05\x02(\xb4\x00\x1b\x01*\x00\x02\x01-\x05\x02.V\x01\x04\x01\"\x00\x02\x01'\x05\x02\x0b]\x00=\x04!\x00\x03\x044\x11\x03\x042\x15\x03*r\x00C\x04\"\x00\x04\x043\x15\x04\x040\x08\x04\x041\x0c\x04\x02\xe0\x00!\x04-\x11\x02\x04)\x15\x02\n\xd6\x004\x04\x1d\x00\x03\x04.\x11\x03\x04-\x15\x03\x1c2\x01\x1c\x04\x1d\x00\x04\x04,\x15\x04\x04)\x08\x04\x04*\x0c\x04(\xb4\x00*\x04\x1f\x00\x04\x04,\x15\x04\x04+\x08\x04\x04+\x0c\x04\x08!\x01?\x04\x1f\x00\x03\x040\x11\x03\x04.\x15\x03+\x08\x00O\x04$\x00\x04\x043\x15\x04\x04/\x08\x04\x042\x0c\x04\x07\xc5\x00.\x04\x1c\x00\x03\x04/\x11\x03\x04-\x15\x03\x15/\x00\x1e\x04\x1f\x00\x04\x04+\x15\x04\x04+\x08\x04\x04+\x0c\x04\x17\xf3\x00\x04\x04\x18\x08\x02\x04\x1e\x0c\x02\x04{\x00\x1a\x04+\x11\x02\x04)\x15\x02\x05\xf8\x00\x10\x04&\x11\x02\x04#\x15\x02\x01\x8b\x00$\x04\x1c\x00\x03\x04.\x11\x03\x04+\x15\x03\"o\x00(\x04 \x00\x04\x040\x15\x04\x04,\x08\x04\x04)\x0c\x04&=\x01J\x04#\x00\x04\x041\x15\x04\x04/\x08\x04\x041\x0c\x04\x027\x01\x12\x03'\x02\x03\x03-\x11\x03\x03+\x0c\x03\x04\x88\x00&\x03+\x02\x03\x030\x11\x03\x03.\x0c\x03\n\x00\x00\x00\x03/\x02\x03\x035\x11\x03\x032\x0c\x03\x0bE\x01?\x03+\x02\x03\x03/\x11\x03\x03-\x0c\x03\x0cG\x00-\x03*\x02\x03\x03-\x11\x03\x03*\x0c\x03\x13?\x00 \x03(\x02\x03\x03(\x11\x03\x03&\x0c\x03\x18\xcb\x00\x0f\x03%\x02\x03\x03+\x11\x03\x03(\x0c\x03\x19\x04\x01 \x03*\x02\x03\x03.\x11\x03\x03,\x0c\x03\t\xb5\x00\x07\x03%\x02\x03\x03)\x11\x03\x03'\x0c\x03$\x1e\x01\x13\x03\"\x02\x03\x03*\x11\x03\x03&\x0c\x03\x87\xcb\xe8/"
+        ]
+        EXPECTED_PARSED = [
+            "<UNI(SATSINFO, cpuidle=96, timeref=1, timestatus=1, wno=2215, tow=367199000, version=0, leapsecond=18, delay=16, numsat=50, reserved1=0, reserved2=0, reserved3=0, l1cab1ie1=1, l2cl2b2ie5b=1, l5b3ie5al5=0, b1cl1c=1, b2ag3e6=0, b2bl2p=1, prn_01=2, azi_01=302, elev_01=51, sysstatus_01_01=0, cno_01_01=45, freqstatus_01_01=0, freqno_01_01=2, sysstatus_01_02=0, cno_01_02=42, freqstatus_01_02=9, freqno_01_02=2, prn_02=4, azi_02=48, elev_02=17, sysstatus_02_01=0, cno_02_01=37, freqstatus_02_01=0, freqno_02_01=3, sysstatus_02_02=0, cno_02_02=43, freqstatus_02_02=14, freqno_02_02=3, sysstatus_02_03=0, cno_02_03=39, freqstatus_02_03=9, freqno_02_03=3, prn_03=5, azi_03=225, elev_03=14, sysstatus_03_01=0, cno_03_01=42, freqstatus_03_01=0, freqno_03_01=2, sysstatus_03_02=0, cno_03_02=37, freqstatus_03_02=9, freqno_03_02=2, prn_04=6, azi_04=35, elev_04=64, sysstatus_04_01=0, cno_04_01=47, freqstatus_04_01=0, freqno_04_01=3, sysstatus_04_02=0, cno_04_02=52, freqstatus_04_02=14, freqno_04_02=3, sysstatus_04_03=0, cno_04_03=48, freqstatus_04_03=9, freqno_04_03=3, prn_05=9, azi_05=80, elev_05=33, sysstatus_05_01=0, cno_05_01=42, freqstatus_05_01=0, freqno_05_01=3, sysstatus_05_02=0, cno_05_02=44, freqstatus_05_02=14, freqno_05_02=3, sysstatus_05_03=0, cno_05_03=40, freqstatus_05_03=9, freqno_05_03=3, prn_06=11, azi_06=300, elev_06=56, sysstatus_06_01=0, cno_06_01=46, freqstatus_06_01=0, freqno_06_01=3, sysstatus_06_02=0, cno_06_02=50, freqstatus_06_02=14, freqno_06_02=3, sysstatus_06_03=0, cno_06_03=46, freqstatus_06_03=9, freqno_06_03=3, prn_07=12, azi_07=277, elev_07=37, sysstatus_07_01=0, cno_07_01=42, freqstatus_07_01=0, freqno_07_01=2, sysstatus_07_02=0, cno_07_02=41, freqstatus_07_02=9, freqno_07_02=2, prn_08=17, azi_08=134, elev_08=31, sysstatus_08_01=0, cno_08_01=44, freqstatus_08_01=0, freqno_08_01=2, sysstatus_08_02=0, cno_08_02=41, freqstatus_08_02=9, freqno_08_02=2, prn_09=19, azi_09=130, elev_09=53, sysstatus_09_01=0, cno_09_01=46, freqstatus_09_01=0, freqno_09_01=2, sysstatus_09_02=0, cno_09_02=43, freqstatus_09_02=9, freqno_09_02=2, prn_10=20, azi_10=232, elev_10=47, sysstatus_10_01=0, cno_10_01=46, freqstatus_10_01=0, freqno_10_01=2, sysstatus_10_02=0, cno_10_02=42, freqstatus_10_02=9, freqno_10_02=2, prn_11=25, azi_11=316, elev_11=15, sysstatus_11_01=0, cno_11_01=38, freqstatus_11_01=0, freqno_11_01=3, sysstatus_11_02=0, cno_11_02=45, freqstatus_11_02=14, freqno_11_02=3, sysstatus_11_03=0, cno_11_03=40, freqstatus_11_03=9, freqno_11_03=3, prn_12=28, azi_12=0, elev_12=0, sysstatus_12_01=0, cno_12_01=37, freqstatus_12_01=0, freqno_12_01=2, sysstatus_12_02=0, cno_12_02=31, freqstatus_12_02=9, freqno_12_02=2, prn_13=194, azi_13=170, elev_13=8, sysstatus_13_01=5, cno_13_01=38, freqstatus_13_01=0, freqno_13_01=3, sysstatus_13_02=5, cno_13_02=41, freqstatus_13_02=14, freqno_13_02=3, sysstatus_13_03=5, cno_13_03=37, freqstatus_13_03=9, freqno_13_03=3, prn_14=195, azi_14=112, elev_14=67, sysstatus_14_01=5, cno_14_01=45, freqstatus_14_01=0, freqno_14_01=3, sysstatus_14_02=5, cno_14_02=49, freqstatus_14_02=14, freqno_14_02=3, sysstatus_14_03=5, cno_14_03=47, freqstatus_14_03=9, freqno_14_03=3, prn_15=196, azi_15=132, elev_15=61, sysstatus_15_01=5, cno_15_01=42, freqstatus_15_01=0, freqno_15_01=3, sysstatus_15_02=5, cno_15_02=48, freqstatus_15_02=14, freqno_15_02=3, sysstatus_15_03=5, cno_15_03=46, freqstatus_15_03=9, freqno_15_03=3, prn_16=199, azi_16=163, elev_16=43, sysstatus_16_01=5, cno_16_01=36, freqstatus_16_01=0, freqno_16_01=3, sysstatus_16_02=5, cno_16_02=46, freqstatus_16_02=14, freqno_16_02=3, sysstatus_16_03=5, cno_16_03=44, freqstatus_16_03=9, freqno_16_03=3, prn_17=39, azi_17=116, elev_17=64, sysstatus_17_01=1, cno_17_01=43, freqstatus_17_01=0, freqno_17_01=2, sysstatus_17_02=1, cno_17_02=49, freqstatus_17_02=5, freqno_17_02=2, prn_18=55, azi_18=316, elev_18=30, sysstatus_18_01=1, cno_18_01=43, freqstatus_18_01=0, freqno_18_01=2, sysstatus_18_02=1, cno_18_02=46, freqstatus_18_02=5, freqno_18_02=2, prn_19=52, azi_19=242, elev_19=10, sysstatus_19_01=1, cno_19_01=39, freqstatus_19_01=0, freqno_19_01=2, sysstatus_19_02=1, cno_19_02=39, freqstatus_19_02=5, freqno_19_02=2, prn_20=38, azi_20=35, elev_20=28, sysstatus_20_01=1, cno_20_01=40, freqstatus_20_01=0, freqno_20_01=2, sysstatus_20_02=1, cno_20_02=41, freqstatus_20_02=5, freqno_20_02=2, prn_21=61, azi_21=93, elev_21=29, sysstatus_21_01=1, cno_21_01=42, freqstatus_21_01=0, freqno_21_01=2, sysstatus_21_02=1, cno_21_02=45, freqstatus_21_02=5, freqno_21_02=2, prn_22=54, azi_22=22, elev_22=62, sysstatus_22_01=1, cno_22_01=47, freqstatus_22_01=0, freqno_22_01=2, sysstatus_22_02=1, cno_22_02=50, freqstatus_22_02=5, freqno_22_02=2, prn_23=40, azi_23=180, elev_23=27, sysstatus_23_01=1, cno_23_01=42, freqstatus_23_01=0, freqno_23_01=2, sysstatus_23_02=1, cno_23_02=45, freqstatus_23_02=5, freqno_23_02=2, prn_24=46, azi_24=342, elev_24=4, sysstatus_24_01=1, cno_24_01=34, freqstatus_24_01=0, freqno_24_01=2, sysstatus_24_02=1, cno_24_02=39, freqstatus_24_02=5, freqno_24_02=2, prn_25=11, azi_25=93, elev_25=61, sysstatus_25_01=4, cno_25_01=33, freqstatus_25_01=0, freqno_25_01=3, sysstatus_25_02=4, cno_25_02=52, freqstatus_25_02=17, freqno_25_02=3, sysstatus_25_03=4, cno_25_03=50, freqstatus_25_03=21, freqno_25_03=3, prn_26=42, azi_26=114, elev_26=67, sysstatus_26_01=4, cno_26_01=34, freqstatus_26_01=0, freqno_26_01=4, sysstatus_26_02=4, cno_26_02=51, freqstatus_26_02=21, freqno_26_02=4, sysstatus_26_03=4, cno_26_03=48, freqstatus_26_03=8, freqno_26_03=4, sysstatus_26_04=4, cno_26_04=49, freqstatus_26_04=12, freqno_26_04=4, prn_27=2, azi_27=224, elev_27=33, sysstatus_27_01=4, cno_27_01=45, freqstatus_27_01=17, freqno_27_01=2, sysstatus_27_02=4, cno_27_02=41, freqstatus_27_02=21, freqno_27_02=2, prn_28=10, azi_28=214, elev_28=52, sysstatus_28_01=4, cno_28_01=29, freqstatus_28_01=0, freqno_28_01=3, sysstatus_28_02=4, cno_28_02=46, freqstatus_28_02=17, freqno_28_02=3, sysstatus_28_03=4, cno_28_03=45, freqstatus_28_03=21, freqno_28_03=3, prn_29=28, azi_29=306, elev_29=28, sysstatus_29_01=4, cno_29_01=29, freqstatus_29_01=0, freqno_29_01=4, sysstatus_29_02=4, cno_29_02=44, freqstatus_29_02=21, freqno_29_02=4, sysstatus_29_03=4, cno_29_03=41, freqstatus_29_03=8, freqno_29_03=4, sysstatus_29_04=4, cno_29_04=42, freqstatus_29_04=12, freqno_29_04=4, prn_30=40, azi_30=180, elev_30=42, sysstatus_30_01=4, cno_30_01=31, freqstatus_30_01=0, freqno_30_01=4, sysstatus_30_02=4, cno_30_02=44, freqstatus_30_02=21, freqno_30_02=4, sysstatus_30_03=4, cno_30_03=43, freqstatus_30_03=8, freqno_30_03=4, sysstatus_30_04=4, cno_30_04=43, freqstatus_30_04=12, freqno_30_04=4, prn_31=8, azi_31=289, elev_31=63, sysstatus_31_01=4, cno_31_01=31, freqstatus_31_01=0, freqno_31_01=3, sysstatus_31_02=4, cno_31_02=48, freqstatus_31_02=17, freqno_31_02=3, sysstatus_31_03=4, cno_31_03=46, freqstatus_31_03=21, freqno_31_03=3, prn_32=43, azi_32=8, elev_32=79, sysstatus_32_01=4, cno_32_01=36, freqstatus_32_01=0, freqno_32_01=4, sysstatus_32_02=4, cno_32_02=51, freqstatus_32_02=21, freqno_32_02=4, sysstatus_32_03=4, cno_32_03=47, freqstatus_32_03=8, freqno_32_03=4, sysstatus_32_04=4, cno_32_04=50, freqstatus_32_04=12, freqno_32_04=4, prn_33=7, azi_33=197, elev_33=46, sysstatus_33_01=4, cno_33_01=28, freqstatus_33_01=0, freqno_33_01=3, sysstatus_33_02=4, cno_33_02=47, freqstatus_33_02=17, freqno_33_02=3, sysstatus_33_03=4, cno_33_03=45, freqstatus_33_03=21, freqno_33_03=3, prn_34=21, azi_34=47, elev_34=30, sysstatus_34_01=4, cno_34_01=31, freqstatus_34_01=0, freqno_34_01=4, sysstatus_34_02=4, cno_34_02=43, freqstatus_34_02=21, freqno_34_02=4, sysstatus_34_03=4, cno_34_03=43, freqstatus_34_03=8, freqno_34_03=4, sysstatus_34_04=4, cno_34_04=43, freqstatus_34_04=12, freqno_34_04=4, prn_35=23, azi_35=243, elev_35=4, sysstatus_35_01=4, cno_35_01=24, freqstatus_35_01=8, freqno_35_01=2, sysstatus_35_02=4, cno_35_02=30, freqstatus_35_02=12, freqno_35_02=2, prn_36=4, azi_36=123, elev_36=26, sysstatus_36_01=4, cno_36_01=43, freqstatus_36_01=17, freqno_36_01=2, sysstatus_36_02=4, cno_36_02=41, freqstatus_36_02=21, freqno_36_02=2, prn_37=5, azi_37=248, elev_37=16, sysstatus_37_01=4, cno_37_01=38, freqstatus_37_01=17, freqno_37_01=2, sysstatus_37_02=4, cno_37_02=35, freqstatus_37_02=21, freqno_37_02=2, prn_38=1, azi_38=139, elev_38=36, sysstatus_38_01=4, cno_38_01=28, freqstatus_38_01=0, freqno_38_01=3, sysstatus_38_02=4, cno_38_02=46, freqstatus_38_02=17, freqno_38_02=3, sysstatus_38_03=4, cno_38_03=43, freqstatus_38_03=21, freqno_38_03=3, prn_39=34, azi_39=111, elev_39=40, sysstatus_39_01=4, cno_39_01=32, freqstatus_39_01=0, freqno_39_01=4, sysstatus_39_02=4, cno_39_02=48, freqstatus_39_02=21, freqno_39_02=4, sysstatus_39_03=4, cno_39_03=44, freqstatus_39_03=8, freqno_39_03=4, sysstatus_39_04=4, cno_39_04=41, freqstatus_39_04=12, freqno_39_04=4, prn_40=38, azi_40=317, elev_40=74, sysstatus_40_01=4, cno_40_01=35, freqstatus_40_01=0, freqno_40_01=4, sysstatus_40_02=4, cno_40_02=49, freqstatus_40_02=21, freqno_40_02=4, sysstatus_40_03=4, cno_40_03=47, freqstatus_40_03=8, freqno_40_03=4, sysstatus_40_04=4, cno_40_04=49, freqstatus_40_04=12, freqno_40_04=4, prn_41=2, azi_41=311, elev_41=18, sysstatus_41_01=3, cno_41_01=39, freqstatus_41_01=2, freqno_41_01=3, sysstatus_41_02=3, cno_41_02=45, freqstatus_41_02=17, freqno_41_02=3, sysstatus_41_03=3, cno_41_03=43, freqstatus_41_03=12, freqno_41_03=3, prn_42=4, azi_42=136, elev_42=38, sysstatus_42_01=3, cno_42_01=43, freqstatus_42_01=2, freqno_42_01=3, sysstatus_42_02=3, cno_42_02=48, freqstatus_42_02=17, freqno_42_02=3, sysstatus_42_03=3, cno_42_03=46, freqstatus_42_03=12, freqno_42_03=3, prn_43=10, azi_43=0, elev_43=0, sysstatus_43_01=3, cno_43_01=47, freqstatus_43_01=2, freqno_43_01=3, sysstatus_43_02=3, cno_43_02=53, freqstatus_43_02=17, freqno_43_02=3, sysstatus_43_03=3, cno_43_03=50, freqstatus_43_03=12, freqno_43_03=3, prn_44=11, azi_44=325, elev_44=63, sysstatus_44_01=3, cno_44_01=43, freqstatus_44_01=2, freqno_44_01=3, sysstatus_44_02=3, cno_44_02=47, freqstatus_44_02=17, freqno_44_02=3, sysstatus_44_03=3, cno_44_03=45, freqstatus_44_03=12, freqno_44_03=3, prn_45=12, azi_45=71, elev_45=45, sysstatus_45_01=3, cno_45_01=42, freqstatus_45_01=2, freqno_45_01=3, sysstatus_45_02=3, cno_45_02=45, freqstatus_45_02=17, freqno_45_02=3, sysstatus_45_03=3, cno_45_03=42, freqstatus_45_03=12, freqno_45_03=3, prn_46=19, azi_46=63, elev_46=32, sysstatus_46_01=3, cno_46_01=40, freqstatus_46_01=2, freqno_46_01=3, sysstatus_46_02=3, cno_46_02=40, freqstatus_46_02=17, freqno_46_02=3, sysstatus_46_03=3, cno_46_03=38, freqstatus_46_03=12, freqno_46_03=3, prn_47=24, azi_47=203, elev_47=15, sysstatus_47_01=3, cno_47_01=37, freqstatus_47_01=2, freqno_47_01=3, sysstatus_47_02=3, cno_47_02=43, freqstatus_47_02=17, freqno_47_02=3, sysstatus_47_03=3, cno_47_03=40, freqstatus_47_03=12, freqno_47_03=3, prn_48=25, azi_48=260, elev_48=32, sysstatus_48_01=3, cno_48_01=42, freqstatus_48_01=2, freqno_48_01=3, sysstatus_48_02=3, cno_48_02=46, freqstatus_48_02=17, freqno_48_02=3, sysstatus_48_03=3, cno_48_03=44, freqstatus_48_03=12, freqno_48_03=3, prn_49=9, azi_49=181, elev_49=7, sysstatus_49_01=3, cno_49_01=37, freqstatus_49_01=2, freqno_49_01=3, sysstatus_49_02=3, cno_49_02=41, freqstatus_49_02=17, freqno_49_02=3, sysstatus_49_03=3, cno_49_03=39, freqstatus_49_03=12, freqno_49_03=3, prn_50=36, azi_50=286, elev_50=19, sysstatus_50_01=3, cno_50_01=34, freqstatus_50_01=2, freqno_50_01=3, sysstatus_50_02=3, cno_50_02=42, freqstatus_50_02=17, freqno_50_02=3, sysstatus_50_03=3, cno_50_03=38, freqstatus_50_03=12, freqno_50_03=3)>",
+        ]
+        stream = b""
+        for msg in DATA:
+            stream += msg
+        unr = UNIReader(BytesIO(stream))
+        i = 0
+        for raw, parsed in unr:
+            # print(f'"{parsed}",')
+            self.assertEqual(str(parsed), EXPECTED_PARSED[i])
+            self.assertEqual(parsed.msgmode, 0)
+            self.assertEqual(isvalid_checksum(raw), True)
+            i += 1
+        self.assertEqual(i, len(DATA))
+
+    def testconstructTEST12(self):
         EXPECTED_RESULT = "<UNI(TEST12, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=197121, mode=1284)>"
         msg = UNIMessage(
             msgid=65512,
@@ -104,7 +120,8 @@ class StreamTest(unittest.TestCase):
         )
         # print(msg)
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b'\xb5\x0c\xf5\x11')
+        self.assertEqual(msg.checksum, b"\xb5\x0c\xf5\x11")
+
         # self.assertEqual(
         #     repr(msg),
         #     "UNIMessage(65512, b'\\x01\\x00\\x66\\x09\\xaa\\xdd\\x13\\x02\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00', 5, b'\\xb5\\x0c\\xf5\\x11', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05')"
@@ -126,15 +143,15 @@ class StreamTest(unittest.TestCase):
             mode=1284,
         )
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b'\xb5\x0c\xf5\x11')
+        self.assertEqual(msg.checksum, b"\xb5\x0c\xf5\x11")
         # self.assertEqual(
         #     repr(msg),
         #     "UNIMessage(65512, b'\\x01\\x00\\x66\\x09\\xaa\\xdd\\x13\\x02\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00', 5, b'\\xb5\\x0c\\xf5\\x11', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05')"
         # )
         self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
 
-    def testconstruct2(self):
-        EXPECTED_RESULT = "<UNI(TEST14, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=197121, mode=1284, status=1798)>"
+    def testconstructTEST14(self):
+        EXPECTED_RESULT = "<UNI(TEST14, cpuidle=0, timeref=1, timestatus=0, wno=2406, tow=34856362, version=1, leapsecond=0, delay=0, data=0, mode=0, active=1, jamming=0, validpos=1, numSV=3, svid_01=8, cno_01=34, svid_02=15, cno_02=55, svid_03=23, cno_03=48)>"
         msg = UNIMessage(
             msgid=65514,
             length=None,
@@ -147,42 +164,133 @@ class StreamTest(unittest.TestCase):
             leapsecond=0,
             delay=0,
             checksum=None,
-            payload=b"\x01\x02\x03\x04\x05\x06\x07",
+            active=1,
+            jamming=0,
+            validpos=1,
+            numSV=3,
+            svid_01=8,
+            cno_01=34,
+            svid_02=15,
+            cno_02=55,
+            svid_03=23,
+            cno_03=48,
         )
-        print(msg)
+        # print(msg)
         self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b'\xd9%D\x15')
-        # self.assertEqual(
-        #     repr(msg),
-        #     "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')",
-        # )
+        self.assertEqual(msg.checksum, b"\xa2_\x8a\xd4")
         self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
-        msg = UNIMessage(
-            msgid=65514,
-            timeref=1,
-            wno=2406,
-            tow=34856362,
-            version=1,
-            data=197121,
-            mode=1284,
-            status=1798,
-        )
-        self.assertEqual(str(msg), EXPECTED_RESULT)
-        self.assertEqual(msg.checksum, b'\xd9%D\x15')
-        # self.assertEqual(
-        #     repr(msg),
-        #     "UNIMessage(65514, b'\\x11\\x22\\x33\\x44\\x55\\x66\\x77\\x88\\x99\\x00\\x11\\x22\\x33\\x44\\x55\\x66', 7, b'\\xaa\\x81\\xa3\\x7a', 0, 0, payload=b'\\x01\\x02\\x03\\x04\\x05\\x06\\x07')",
-        # )
-        self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
+        msg1 = UNIReader.parse(msg.serialize())
+        print(msg.serialize())
+        self.assertEqual(str(msg1), EXPECTED_RESULT)
+
+    def testconstructSATSINFO(self):
+        EXPECTED_RESULT = "<UNI(SATSINFO, cpuidle=96, timeref=1, timestatus=1, wno=2215, tow=367199000, version=0, leapsecond=18, delay=16, numsat=50, reserved1=0, reserved2=0, reserved3=0, l1cab1ie1=0, l2cl2b2ie5b=0, l5b3ie5al5=0, b1cl1c=0, b2ag3e6=0, b2bl2p=0, prn_01=2, azi_01=302, elev_01=51, sysstatus_01_01=0, cno_01_01=45, freqstatus_01_01=0, freqno_01_01=2, sysstatus_01_02=0, cno_01_02=42, freqstatus_01_02=9, freqno_01_02=2, prn_02=4, azi_02=48, elev_02=17, sysstatus_02_01=0, cno_02_01=37, freqstatus_02_01=0, freqno_02_01=3, sysstatus_02_02=0, cno_02_02=43, freqstatus_02_02=14, freqno_02_02=3, sysstatus_02_03=0, cno_02_03=39, freqstatus_02_03=9, freqno_02_03=3, prn_03=5, azi_03=225, elev_03=14, sysstatus_03_01=0, cno_03_01=42, freqstatus_03_01=0, freqno_03_01=2, sysstatus_03_02=0, cno_03_02=37, freqstatus_03_02=9, freqno_03_02=2, prn_04=6, azi_04=35, elev_04=64, sysstatus_04_01=0, cno_04_01=47, freqstatus_04_01=0, freqno_04_01=3, sysstatus_04_02=0, cno_04_02=52, freqstatus_04_02=14, freqno_04_02=3, sysstatus_04_03=0, cno_04_03=48, freqstatus_04_03=9, freqno_04_03=3, prn_05=9, azi_05=80, elev_05=33, sysstatus_05_01=0, cno_05_01=42, freqstatus_05_01=0, freqno_05_01=3, sysstatus_05_02=0, cno_05_02=44, freqstatus_05_02=14, freqno_05_02=3, sysstatus_05_03=0, cno_05_03=40, freqstatus_05_03=9, freqno_05_03=3, prn_06=11, azi_06=300, elev_06=56, sysstatus_06_01=0, cno_06_01=46, freqstatus_06_01=0, freqno_06_01=3, sysstatus_06_02=0, cno_06_02=50, freqstatus_06_02=14, freqno_06_02=3, sysstatus_06_03=0, cno_06_03=46, freqstatus_06_03=9, freqno_06_03=3, prn_07=12, azi_07=277, elev_07=37, sysstatus_07_01=0, cno_07_01=42, freqstatus_07_01=0, freqno_07_01=2, sysstatus_07_02=0, cno_07_02=41, freqstatus_07_02=9, freqno_07_02=2, prn_08=17, azi_08=134, elev_08=31, sysstatus_08_01=0, cno_08_01=44, freqstatus_08_01=0, freqno_08_01=2, sysstatus_08_02=0, cno_08_02=41, freqstatus_08_02=9, freqno_08_02=2, prn_09=19, azi_09=130, elev_09=53, sysstatus_09_01=0, cno_09_01=46, freqstatus_09_01=0, freqno_09_01=2, sysstatus_09_02=0, cno_09_02=43, freqstatus_09_02=9, freqno_09_02=2, prn_10=20, azi_10=232, elev_10=47, sysstatus_10_01=0, cno_10_01=46, freqstatus_10_01=0, freqno_10_01=2, sysstatus_10_02=0, cno_10_02=42, freqstatus_10_02=9, freqno_10_02=2, prn_11=25, azi_11=316, elev_11=15, sysstatus_11_01=0, cno_11_01=38, freqstatus_11_01=0, freqno_11_01=3, sysstatus_11_02=0, cno_11_02=45, freqstatus_11_02=14, freqno_11_02=3, sysstatus_11_03=0, cno_11_03=40, freqstatus_11_03=9, freqno_11_03=3, prn_12=28, azi_12=0, elev_12=0, sysstatus_12_01=0, cno_12_01=37, freqstatus_12_01=0, freqno_12_01=2, sysstatus_12_02=0, cno_12_02=31, freqstatus_12_02=9, freqno_12_02=2, prn_13=194, azi_13=170, elev_13=8, sysstatus_13_01=5, cno_13_01=38, freqstatus_13_01=0, freqno_13_01=3, sysstatus_13_02=5, cno_13_02=41, freqstatus_13_02=14, freqno_13_02=3, sysstatus_13_03=5, cno_13_03=37, freqstatus_13_03=9, freqno_13_03=3, prn_14=195, azi_14=112, elev_14=67, sysstatus_14_01=5, cno_14_01=45, freqstatus_14_01=0, freqno_14_01=3, sysstatus_14_02=5, cno_14_02=49, freqstatus_14_02=14, freqno_14_02=3, sysstatus_14_03=5, cno_14_03=47, freqstatus_14_03=9, freqno_14_03=3, prn_15=196, azi_15=132, elev_15=61, sysstatus_15_01=5, cno_15_01=42, freqstatus_15_01=0, freqno_15_01=3, sysstatus_15_02=5, cno_15_02=48, freqstatus_15_02=14, freqno_15_02=3, sysstatus_15_03=5, cno_15_03=46, freqstatus_15_03=9, freqno_15_03=3, prn_16=199, azi_16=163, elev_16=43, sysstatus_16_01=5, cno_16_01=36, freqstatus_16_01=0, freqno_16_01=3, sysstatus_16_02=5, cno_16_02=46, freqstatus_16_02=14, freqno_16_02=3, sysstatus_16_03=5, cno_16_03=44, freqstatus_16_03=9, freqno_16_03=3, prn_17=39, azi_17=116, elev_17=64, sysstatus_17_01=1, cno_17_01=43, freqstatus_17_01=0, freqno_17_01=2, sysstatus_17_02=1, cno_17_02=49, freqstatus_17_02=5, freqno_17_02=2, prn_18=55, azi_18=316, elev_18=30, sysstatus_18_01=1, cno_18_01=43, freqstatus_18_01=0, freqno_18_01=2, sysstatus_18_02=1, cno_18_02=46, freqstatus_18_02=5, freqno_18_02=2, prn_19=52, azi_19=242, elev_19=10, sysstatus_19_01=1, cno_19_01=39, freqstatus_19_01=0, freqno_19_01=2, sysstatus_19_02=1, cno_19_02=39, freqstatus_19_02=5, freqno_19_02=2, prn_20=38, azi_20=35, elev_20=28, sysstatus_20_01=1, cno_20_01=40, freqstatus_20_01=0, freqno_20_01=2, sysstatus_20_02=1, cno_20_02=41, freqstatus_20_02=5, freqno_20_02=2, prn_21=61, azi_21=93, elev_21=29, sysstatus_21_01=1, cno_21_01=42, freqstatus_21_01=0, freqno_21_01=2, sysstatus_21_02=1, cno_21_02=45, freqstatus_21_02=5, freqno_21_02=2, prn_22=54, azi_22=22, elev_22=62, sysstatus_22_01=1, cno_22_01=47, freqstatus_22_01=0, freqno_22_01=2, sysstatus_22_02=1, cno_22_02=50, freqstatus_22_02=5, freqno_22_02=2, prn_23=40, azi_23=180, elev_23=27, sysstatus_23_01=1, cno_23_01=42, freqstatus_23_01=0, freqno_23_01=2, sysstatus_23_02=1, cno_23_02=45, freqstatus_23_02=5, freqno_23_02=2, prn_24=46, azi_24=342, elev_24=4, sysstatus_24_01=1, cno_24_01=34, freqstatus_24_01=0, freqno_24_01=2, sysstatus_24_02=1, cno_24_02=39, freqstatus_24_02=5, freqno_24_02=2, prn_25=11, azi_25=93, elev_25=61, sysstatus_25_01=4, cno_25_01=33, freqstatus_25_01=0, freqno_25_01=3, sysstatus_25_02=4, cno_25_02=52, freqstatus_25_02=17, freqno_25_02=3, sysstatus_25_03=4, cno_25_03=50, freqstatus_25_03=21, freqno_25_03=3, prn_26=42, azi_26=114, elev_26=67, sysstatus_26_01=4, cno_26_01=34, freqstatus_26_01=0, freqno_26_01=4, sysstatus_26_02=4, cno_26_02=51, freqstatus_26_02=21, freqno_26_02=4, sysstatus_26_03=4, cno_26_03=48, freqstatus_26_03=8, freqno_26_03=4, sysstatus_26_04=4, cno_26_04=49, freqstatus_26_04=12, freqno_26_04=4, prn_27=2, azi_27=224, elev_27=33, sysstatus_27_01=4, cno_27_01=45, freqstatus_27_01=17, freqno_27_01=2, sysstatus_27_02=4, cno_27_02=41, freqstatus_27_02=21, freqno_27_02=2, prn_28=10, azi_28=214, elev_28=52, sysstatus_28_01=4, cno_28_01=29, freqstatus_28_01=0, freqno_28_01=3, sysstatus_28_02=4, cno_28_02=46, freqstatus_28_02=17, freqno_28_02=3, sysstatus_28_03=4, cno_28_03=45, freqstatus_28_03=21, freqno_28_03=3, prn_29=28, azi_29=306, elev_29=28, sysstatus_29_01=4, cno_29_01=29, freqstatus_29_01=0, freqno_29_01=4, sysstatus_29_02=4, cno_29_02=44, freqstatus_29_02=21, freqno_29_02=4, sysstatus_29_03=4, cno_29_03=41, freqstatus_29_03=8, freqno_29_03=4, sysstatus_29_04=4, cno_29_04=42, freqstatus_29_04=12, freqno_29_04=4, prn_30=40, azi_30=180, elev_30=42, sysstatus_30_01=4, cno_30_01=31, freqstatus_30_01=0, freqno_30_01=4, sysstatus_30_02=4, cno_30_02=44, freqstatus_30_02=21, freqno_30_02=4, sysstatus_30_03=4, cno_30_03=43, freqstatus_30_03=8, freqno_30_03=4, sysstatus_30_04=4, cno_30_04=43, freqstatus_30_04=12, freqno_30_04=4, prn_31=8, azi_31=289, elev_31=63, sysstatus_31_01=4, cno_31_01=31, freqstatus_31_01=0, freqno_31_01=3, sysstatus_31_02=4, cno_31_02=48, freqstatus_31_02=17, freqno_31_02=3, sysstatus_31_03=4, cno_31_03=46, freqstatus_31_03=21, freqno_31_03=3, prn_32=43, azi_32=8, elev_32=79, sysstatus_32_01=4, cno_32_01=36, freqstatus_32_01=0, freqno_32_01=4, sysstatus_32_02=4, cno_32_02=51, freqstatus_32_02=21, freqno_32_02=4, sysstatus_32_03=4, cno_32_03=47, freqstatus_32_03=8, freqno_32_03=4, sysstatus_32_04=4, cno_32_04=50, freqstatus_32_04=12, freqno_32_04=4, prn_33=7, azi_33=197, elev_33=46, sysstatus_33_01=4, cno_33_01=28, freqstatus_33_01=0, freqno_33_01=3, sysstatus_33_02=4, cno_33_02=47, freqstatus_33_02=17, freqno_33_02=3, sysstatus_33_03=4, cno_33_03=45, freqstatus_33_03=21, freqno_33_03=3, prn_34=21, azi_34=47, elev_34=30, sysstatus_34_01=4, cno_34_01=31, freqstatus_34_01=0, freqno_34_01=4, sysstatus_34_02=4, cno_34_02=43, freqstatus_34_02=21, freqno_34_02=4, sysstatus_34_03=4, cno_34_03=43, freqstatus_34_03=8, freqno_34_03=4, sysstatus_34_04=4, cno_34_04=43, freqstatus_34_04=12, freqno_34_04=4, prn_35=23, azi_35=243, elev_35=4, sysstatus_35_01=4, cno_35_01=24, freqstatus_35_01=8, freqno_35_01=2, sysstatus_35_02=4, cno_35_02=30, freqstatus_35_02=12, freqno_35_02=2, prn_36=4, azi_36=123, elev_36=26, sysstatus_36_01=4, cno_36_01=43, freqstatus_36_01=17, freqno_36_01=2, sysstatus_36_02=4, cno_36_02=41, freqstatus_36_02=21, freqno_36_02=2, prn_37=5, azi_37=248, elev_37=16, sysstatus_37_01=4, cno_37_01=38, freqstatus_37_01=17, freqno_37_01=2, sysstatus_37_02=4, cno_37_02=35, freqstatus_37_02=21, freqno_37_02=2, prn_38=1, azi_38=139, elev_38=36, sysstatus_38_01=4, cno_38_01=28, freqstatus_38_01=0, freqno_38_01=3, sysstatus_38_02=4, cno_38_02=46, freqstatus_38_02=17, freqno_38_02=3, sysstatus_38_03=4, cno_38_03=43, freqstatus_38_03=21, freqno_38_03=3, prn_39=34, azi_39=111, elev_39=40, sysstatus_39_01=4, cno_39_01=32, freqstatus_39_01=0, freqno_39_01=4, sysstatus_39_02=4, cno_39_02=48, freqstatus_39_02=21, freqno_39_02=4, sysstatus_39_03=4, cno_39_03=44, freqstatus_39_03=8, freqno_39_03=4, sysstatus_39_04=4, cno_39_04=41, freqstatus_39_04=12, freqno_39_04=4, prn_40=38, azi_40=317, elev_40=74, sysstatus_40_01=4, cno_40_01=35, freqstatus_40_01=0, freqno_40_01=4, sysstatus_40_02=4, cno_40_02=49, freqstatus_40_02=21, freqno_40_02=4, sysstatus_40_03=4, cno_40_03=47, freqstatus_40_03=8, freqno_40_03=4, sysstatus_40_04=4, cno_40_04=49, freqstatus_40_04=12, freqno_40_04=4, prn_41=2, azi_41=311, elev_41=18, sysstatus_41_01=3, cno_41_01=39, freqstatus_41_01=2, freqno_41_01=3, sysstatus_41_02=3, cno_41_02=45, freqstatus_41_02=17, freqno_41_02=3, sysstatus_41_03=3, cno_41_03=43, freqstatus_41_03=12, freqno_41_03=3, prn_42=4, azi_42=136, elev_42=38, sysstatus_42_01=3, cno_42_01=43, freqstatus_42_01=2, freqno_42_01=3, sysstatus_42_02=3, cno_42_02=48, freqstatus_42_02=17, freqno_42_02=3, sysstatus_42_03=3, cno_42_03=46, freqstatus_42_03=12, freqno_42_03=3, prn_43=10, azi_43=0, elev_43=0, sysstatus_43_01=3, cno_43_01=47, freqstatus_43_01=2, freqno_43_01=3, sysstatus_43_02=3, cno_43_02=53, freqstatus_43_02=17, freqno_43_02=3, sysstatus_43_03=3, cno_43_03=50, freqstatus_43_03=12, freqno_43_03=3, prn_44=11, azi_44=325, elev_44=63, sysstatus_44_01=3, cno_44_01=43, freqstatus_44_01=2, freqno_44_01=3, sysstatus_44_02=3, cno_44_02=47, freqstatus_44_02=17, freqno_44_02=3, sysstatus_44_03=3, cno_44_03=45, freqstatus_44_03=12, freqno_44_03=3, prn_45=12, azi_45=71, elev_45=45, sysstatus_45_01=3, cno_45_01=42, freqstatus_45_01=2, freqno_45_01=3, sysstatus_45_02=3, cno_45_02=45, freqstatus_45_02=17, freqno_45_02=3, sysstatus_45_03=3, cno_45_03=42, freqstatus_45_03=12, freqno_45_03=3, prn_46=19, azi_46=63, elev_46=32, sysstatus_46_01=3, cno_46_01=40, freqstatus_46_01=2, freqno_46_01=3, sysstatus_46_02=3, cno_46_02=40, freqstatus_46_02=17, freqno_46_02=3, sysstatus_46_03=3, cno_46_03=38, freqstatus_46_03=12, freqno_46_03=3, prn_47=24, azi_47=203, elev_47=15, sysstatus_47_01=3, cno_47_01=37, freqstatus_47_01=2, freqno_47_01=3, sysstatus_47_02=3, cno_47_02=43, freqstatus_47_02=17, freqno_47_02=3, sysstatus_47_03=3, cno_47_03=40, freqstatus_47_03=12, freqno_47_03=3, prn_48=25, azi_48=260, elev_48=32, sysstatus_48_01=3, cno_48_01=42, freqstatus_48_01=2, freqno_48_01=3, sysstatus_48_02=3, cno_48_02=46, freqstatus_48_02=17, freqno_48_02=3, sysstatus_48_03=3, cno_48_03=44, freqstatus_48_03=12, freqno_48_03=3, prn_49=9, azi_49=181, elev_49=7, sysstatus_49_01=3, cno_49_01=37, freqstatus_49_01=2, freqno_49_01=3, sysstatus_49_02=3, cno_49_02=41, freqstatus_49_02=17, freqno_49_02=3, sysstatus_49_03=3, cno_49_03=39, freqstatus_49_03=12, freqno_49_03=3, prn_50=36, azi_50=286, elev_50=19, sysstatus_50_01=3, cno_50_01=34, freqstatus_50_01=2, freqno_50_01=3, sysstatus_50_02=3, cno_50_02=42, freqstatus_50_02=17, freqno_50_02=3, sysstatus_50_03=3, cno_50_03=38, freqstatus_50_03=12, freqno_50_03=3)>"
+        hdr = (2124, 96, 1, 1, 2215, 367199000, 0, 0, 18, 16, 50, 2, 0, 0, 0, 63)
+        sats = [
+            (2, 302, 51, 0, 45, 0, 2, 0, 42, 9, 2),
+            (4, 48, 17, 0, 37, 0, 3, 0, 43, 14, 3, 0, 39, 9, 3),
+            (5, 225, 14, 0, 42, 0, 2, 0, 37, 9, 2),
+            (6, 35, 64, 0, 47, 0, 3, 0, 52, 14, 3, 0, 48, 9, 3),
+            (9, 80, 33, 0, 42, 0, 3, 0, 44, 14, 3, 0, 40, 9, 3),
+            (11, 300, 56, 0, 46, 0, 3, 0, 50, 14, 3, 0, 46, 9, 3),
+            (12, 277, 37, 0, 42, 0, 2, 0, 41, 9, 2),
+            (17, 134, 31, 0, 44, 0, 2, 0, 41, 9, 2),
+            (19, 130, 53, 0, 46, 0, 2, 0, 43, 9, 2),
+            (20, 232, 47, 0, 46, 0, 2, 0, 42, 9, 2),
+            (25, 316, 15, 0, 38, 0, 3, 0, 45, 14, 3, 0, 40, 9, 3),
+            (28, 0, 0, 0, 37, 0, 2, 0, 31, 9, 2),
+            (194, 170, 8, 5, 38, 0, 3, 5, 41, 14, 3, 5, 37, 9, 3),
+            (195, 112, 67, 5, 45, 0, 3, 5, 49, 14, 3, 5, 47, 9, 3),
+            (196, 132, 61, 5, 42, 0, 3, 5, 48, 14, 3, 5, 46, 9, 3),
+            (199, 163, 43, 5, 36, 0, 3, 5, 46, 14, 3, 5, 44, 9, 3),
+            (39, 116, 64, 1, 43, 0, 2, 1, 49, 5, 2),
+            (55, 316, 30, 1, 43, 0, 2, 1, 46, 5, 2),
+            (52, 242, 10, 1, 39, 0, 2, 1, 39, 5, 2),
+            (38, 35, 28, 1, 40, 0, 2, 1, 41, 5, 2),
+            (61, 93, 29, 1, 42, 0, 2, 1, 45, 5, 2),
+            (54, 22, 62, 1, 47, 0, 2, 1, 50, 5, 2),
+            (40, 180, 27, 1, 42, 0, 2, 1, 45, 5, 2),
+            (46, 342, 4, 1, 34, 0, 2, 1, 39, 5, 2),
+            (11, 93, 61, 4, 33, 0, 3, 4, 52, 17, 3, 4, 50, 21, 3),
+            (42, 114, 67, 4, 34, 0, 4, 4, 51, 21, 4, 4, 48, 8, 4, 4, 49, 12, 4),
+            (2, 224, 33, 4, 45, 17, 2, 4, 41, 21, 2),
+            (10, 214, 52, 4, 29, 0, 3, 4, 46, 17, 3, 4, 45, 21, 3),
+            (28, 306, 28, 4, 29, 0, 4, 4, 44, 21, 4, 4, 41, 8, 4, 4, 42, 12, 4),
+            (40, 180, 42, 4, 31, 0, 4, 4, 44, 21, 4, 4, 43, 8, 4, 4, 43, 12, 4),
+            (8, 289, 63, 4, 31, 0, 3, 4, 48, 17, 3, 4, 46, 21, 3),
+            (43, 8, 79, 4, 36, 0, 4, 4, 51, 21, 4, 4, 47, 8, 4, 4, 50, 12, 4),
+            (7, 197, 46, 4, 28, 0, 3, 4, 47, 17, 3, 4, 45, 21, 3),
+            (21, 47, 30, 4, 31, 0, 4, 4, 43, 21, 4, 4, 43, 8, 4, 4, 43, 12, 4),
+            (23, 243, 4, 4, 24, 8, 2, 4, 30, 12, 2),
+            (4, 123, 26, 4, 43, 17, 2, 4, 41, 21, 2),
+            (5, 248, 16, 4, 38, 17, 2, 4, 35, 21, 2),
+            (1, 139, 36, 4, 28, 0, 3, 4, 46, 17, 3, 4, 43, 21, 3),
+            (34, 111, 40, 4, 32, 0, 4, 4, 48, 21, 4, 4, 44, 8, 4, 4, 41, 12, 4),
+            (38, 317, 74, 4, 35, 0, 4, 4, 49, 21, 4, 4, 47, 8, 4, 4, 49, 12, 4),
+            (2, 311, 18, 3, 39, 2, 3, 3, 45, 17, 3, 3, 43, 12, 3),
+            (4, 136, 38, 3, 43, 2, 3, 3, 48, 17, 3, 3, 46, 12, 3),
+            (10, 0, 0, 3, 47, 2, 3, 3, 53, 17, 3, 3, 50, 12, 3),
+            (11, 325, 63, 3, 43, 2, 3, 3, 47, 17, 3, 3, 45, 12, 3),
+            (12, 71, 45, 3, 42, 2, 3, 3, 45, 17, 3, 3, 42, 12, 3),
+            (19, 63, 32, 3, 40, 2, 3, 3, 40, 17, 3, 3, 38, 12, 3),
+            (24, 203, 15, 3, 37, 2, 3, 3, 43, 17, 3, 3, 40, 12, 3),
+            (25, 260, 32, 3, 42, 2, 3, 3, 46, 17, 3, 3, 44, 12, 3),
+            (9, 181, 7, 3, 37, 2, 3, 3, 41, 17, 3, 3, 39, 12, 3),
+            (36, 286, 19, 3, 34, 2, 3, 3, 42, 17, 3, 3, 38, 12, 3),
+        ]
+
+        pre = {
+            "msgid": hdr[0],
+            "length": None,
+            "cpuidle": hdr[1],
+            "timeref": hdr[2],
+            "timestatus": hdr[3],
+            "wno": hdr[4],
+            "tow": hdr[5],
+            "version": hdr[6],
+            "leapsecond": hdr[8],
+            "delay": hdr[9],
+            "numsat": hdr[10],
+            "version": hdr[11],
+            "reserved1": hdr[12],
+            "reserved2": hdr[13],
+            "reserved3": hdr[14],
+            "L1B1IE1": 1,
+            "L2CL2B2IE5b": 1,
+            "L5B3IE5aL5": 0,
+            "B1CL1C": 1,
+            "B2aG3E6": 0,
+            "B2bL2P": 1,
+        }
+
+        satd = {}
+        for i, sat in enumerate(sats):
+            prn = sat[0]
+            azi = sat[1]
+            elev = sat[2]
+            freqno = sat[6]
+            satd[f"prn_{i+1:02d}"] = prn
+            satd[f"azi_{i+1:02d}"] = azi
+            satd[f"elev_{i+1:02d}"] = elev
+            for n in range(freqno):
+                satd[f"sysstatus_{i+1:02d}_{n+1:02d}"] = sat[3 + n * 4]
+                satd[f"cno_{i+1:02d}_{n+1:02d}"] = sat[4 + n * 4]
+                satd[f"freqstatus_{i+1:02d}_{n+1:02d}"] = sat[5 + n * 4]
+                satd[f"freqno_{i+1:02d}_{n+1:02d}"] = sat[6 + n * 4]
+
+        args = {**pre, **satd}
+        msg = UNIMessage(**args)
+        print(f'"{msg}"')
+        # self.assertEqual(str(msg), EXPECTED_RESULT)
 
     def testserialize(self):
-        EXPECTED_RAW = b'\xaaD\xb5\x00\x11\x004\x01\x00\x00f\t\x8f\xf4\x0e\x02\x00\x00\x00\x00\x00\x00\x00\x00M982R4.10Build5251                   HRPT00-S10C-P                                                                                                                    -                                                                 ffff48ffff0fffff                 2021/11/26                                 #\x87\x83\xb9'
-        EXPECTED_PARSE = "<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=M982, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>"
+        EXPECTED_RAW = b"\xaaD\xb5\x00\x11\x004\x01\x00\x00f\t\x8f\xf4\x0e\x02\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00R4.10Build5251                   HRPT00-S10C-P                                                                                                                    -                                                                 ffff48ffff0fffff                 2021/11/26                                 \x11t\x19\x1f"
+        EXPECTED_PARSE = "<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=18, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>"
         msg = UNIMessage(
             msgid=17,
             wno=2406,
             tow=34534543,
-            device="M982",
+            device=18,  # UM980
             swversion="R4.10Build5251",
             authtype="HRPT00-S10C-P",
             psn="-",
@@ -200,7 +308,7 @@ class StreamTest(unittest.TestCase):
         msg = UNIMessage(
             msgid=17,
             timeinfo=b"\x00" * 16,
-            device="M982",
+            device=18,  # UM980
             swversion="R4.10Build5251",
             authtype="HRPT00-S10C-P",
             psn="-",
@@ -211,7 +319,7 @@ class StreamTest(unittest.TestCase):
             une.UNIMessageError,
             "Object is immutable. Updates to device not permitted after initialisation.",
         ):
-            msg.device = "M888"
+            msg.device = 18
 
     def testrtcm(self):  # test RTCM parsing
         EXPECTED_RESULTS = (
@@ -243,6 +351,29 @@ class StreamTest(unittest.TestCase):
                 i += 1
             self.assertEqual(i, len(EXPECTED_RESULTS))
 
+    def testparseascii(self): # TODO replace with correct results when ascii parsing implemented
+        EXPECTED_RESULTS = (
+            "<UNI(VERSION, cpuidle=94, timeref=0, timestatus=1, wno=2190, tow=117325000, version=0, leapsecond=18, delay=160, device=0, swversion=, authtype=, psn=, efuseid=, comptime=)>",
+            "<UNI(BD3ION, cpuidle=89, timeref=0, timestatus=1, wno=2190, tow=371265000, version=0, leapsecond=18, delay=22, a1=0.0, a2=0.0, a3=0.0, a4=0.0, a5=0.0, a6=0.0, a7=0.0, a8=0.0, a9=0.0, reserved1=0)>",
+            "<UNI(IRNSSEPH, cpuidle=87, timeref=0, timestatus=1, wno=2305, tow=116273000, version=0, leapsecond=18, delay=31, prn=0, towc=0.0, l5health=0, iodec=0, shealth=0, week=0, reserved1=0, toe=0.0, a=0.0, deltan=0.0, m0=0.0, ecc=0.0, omega=0.0, cuc=0.0, cus=0.0, crc=0.0, crs=0.0, cic=0.0, cis=0.0, i0=0.0, idot=0.0, omega0=0.0, omegadot=0.0, reserved2=0, toc=0.0, tgd=0.0, af0=0.0, af1=0.0, af2=0.0, flag=0, n=0.0, ura=0.0)>",
+            "<UNI(GALEPH, cpuidle=97, timeref=0, timestatus=1, wno=2190, tow=363656000, version=0, leapsecond=18, delay=3, satid=0, fnavreceived=0, inavreceived=0, e1bhealth=0, e5ahealth=0, e5bhealth=0, e1bdvs=0, e5advs=0, e5bdvs=0, sisa=0, reserved1=0, iodnav=0, toe=0, roota=0.0, deltan=0.0, m0=0.0, ecc=0.0, omega=0.0, cuc=0.0, cus=0.0, crc=0.0, crs=0.0, cic=0.0, cis=0.0, i0=0.0, idot=0.0, omega0=0.0, omegadot=0.0, fnavt0c=0, fnavaf0=0.0, fnavaf1=0.0, fnavaf2=0.0, inavt0c=0, inavaf0=0.0, inavaf1=0.0, inavaf2=0.0, e1e5abgd=0.0, e1e5bbgd=0.0)>",
+        )
+
+        i = 0
+        with open(os.path.join(DIRNAME, "pygpsdata_uni_ascii.log"), "rb") as stream:
+            ubr = UNIReader(
+                stream,
+                protfilter=UNI_ASCII_PROTOCOL | RTCM3_PROTOCOL | NMEA_PROTOCOL,
+                parsing=True,
+                parsebitfield=1,
+                validate=VALCKSUM,
+                quitonerror=ERR_RAISE,
+            )
+            for raw, parsed in ubr:
+                # print(f'"{parsed}",')
+                self.assertEqual(str(parsed), EXPECTED_RESULTS[i])
+                i += 1
+            self.assertEqual(i, len(EXPECTED_RESULTS))
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

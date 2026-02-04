@@ -26,23 +26,34 @@ VALCKSUM = 1
 NMEA_PROTOCOL = 1
 """NMEA Protocol"""
 UNI_PROTOCOL = 2
-"""UNI Protocol"""
+"""UNI Binary Protocol"""
 RTCM3_PROTOCOL = 4
 """RTCM3 Protocol"""
+UNI_ASCII_PROTOCOL = 8
+"""UNI ASCII Protocol"""
 ERR_RAISE = 2
 """Raise error and quit"""
 ERR_LOG = 1
 """Log errors"""
 ERR_IGNORE = 0
 """Ignore errors"""
+BINARY = "B"
+"""UNI binary protocol"""
+ASCII = "A"
+"""UNI ASCII protocol"""
+
 SCALROUND = 12  # number of dp to round scaled attributes to
+
+FREQNO = "freqno"  # holds real time calc of freqno for SATSINFO
 
 # **************************************************
 # THESE ARE THE UNI PROTOCOL PAYLOAD ATTRIBUTE TYPES
 # **************************************************
-C8 = "C008"  # 8 byte haracter string
-C10 = "C010"  # 10 byte character string
 CV = "CXXX"  # variable length character string
+C1 = "C001"  # 1 bytes character string
+C4 = "C004"  # 4 bytes character string
+C8 = "C008"  # 8 byte character string
+C10 = "C010"  # 10 byte character string
 R4 = "R004"  # single precision float 4 [-1*2^127,2^127]
 R8 = "R008"  # double precision float 8 [-1*2^1023,2^1023]
 S1 = "S001"  # signed char 1 [-128,127]
@@ -59,13 +70,11 @@ U8 = "U008"  # unsigned long long int 8 [0,2^64-1]
 U10 = "U010"  # unsigned long long int 10
 U15 = "U015"  # unsigned long long int 15
 U16 = "U016"  # unsigned long long int 16
-U17 = "U017"  # unsigned long long int 17
-X1 = "X001"  # 8 bits field 1 Bit 7-0
-X2 = "X002"  # 16 bits field 2 Bit 15-0
-X4 = "X004"  # 32 bits field 4 Bit 31-0
-X8 = "X008"  # 64 bits field 8 Bit 63-0
-X61 = "X061"  # 61 bytes
-X250 = "X250"  # 250 bytes
+X1 = "X001"  # 8 bits field
+X2 = "X002"  # 16 bits field
+X4 = "X004"  # 32 bits field
+X8 = "X008"  # 64 bits field
+X24 = "X024"  # 192 bits field
 
 ATTTYPE = {
     "S": type(-1),
@@ -79,9 +88,6 @@ ATTTYPE = {
 # ***************************************************************************
 # THESE ARE THE UNI PROTOCOL CORE MESSAGE IDENTITIES
 # Payloads for each of these identities are defined in the unitypes_* modules
-#
-# Uses nominal msgids in the 65000 range for messages which are only
-# available in ASCII format
 # ***************************************************************************
 UNI_MSGIDS = {
     17: "VERSION",  # Version and Authorization
@@ -108,7 +114,7 @@ UNI_MSGIDS = {
     112: "IRNSSEPH",  # IRNSS Ephemeris
     11276: "AGRIC",  # Position, velocity, serial no, heading and baseline information
     1021: "PVTSLN",  # Position and Heading Information
-    65001: "UNILOGLIST",  # Output Log List (no binary version)
+    # : "UNILOGLIST",  # Output Log List (ascii only)
     2118: "BESTNAV",  # Best Position and Velocity
     240: "BESTNAVXYZ",  # Best Position and Velocity in ECEF
     2119: "BESTNAVH",  # Best Position and Velocity (2nd Antenna)
@@ -142,7 +148,7 @@ UNI_MSGIDS = {
     2125: "RTCMSTATUS",  # RTCM Data Status
     218: "HWSTATUS",  # Hardware Status
     220: "AGC",  # Automatic Gain Control
-    65002: "KSXT",  # Positioning and Heading Data Output (no binary format)
+    # : "KSXT",  # Positioning and Heading Data Output (ascii only)
     1019: "INFOPART1",  # Read user-defined information in PART1
     1020: "INFOPART2",  # Read user-defined information in PART2
     520: "MSPOS",  # Best Position of Dual Antennas

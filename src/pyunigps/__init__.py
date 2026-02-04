@@ -21,6 +21,7 @@ from pyunigps.unihelpers import *
 from pyunigps.unimessage import UNIMessage
 from pyunigps.unireader import UNIReader
 from pyunigps.unitypes_core import *
+from pyunigps.unitypes_decodes import *
 from pyunigps.unitypes_get import *
 
 version = __version__  # pylint: disable=invalid-name

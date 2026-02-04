@@ -8,4 +8,4 @@ Created on 6 Oct 2025
 :license: BSD 3-Clause
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"

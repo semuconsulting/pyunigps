@@ -44,6 +44,14 @@ pyunigps.unitypes\_core module
    :undoc-members:
    :show-inheritance:
 
+pyunigps.unitypes\_decodes module
+---------------------------------
+
+.. automodule:: pyunigps.unitypes_decodes
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyunigps.unitypes\_get module
 -----------------------------
 
