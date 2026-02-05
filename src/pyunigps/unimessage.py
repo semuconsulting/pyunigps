@@ -14,7 +14,6 @@ Created on 26 Sep 2020
 
 import struct
 from types import NoneType
-from typing import Literal
 
 from pyunigps.exceptions import UNIMessageError, UNITypeError
 from pyunigps.unihelpers import (
@@ -62,7 +61,6 @@ class UNIMessage:
         checksum: bytes | NoneType = None,
         msgmode: int = GET,
         parsebitfield: bool = True,
-        unimode: Literal["A", "B"] = BINARY,
         **kwargs,
     ):
         """
@@ -87,7 +85,6 @@ class UNIMessage:
         :param bytes | NoneType checksum: CRC (will be derived if None)
         :param int msgmode: message mode (0 = GET, 1 = SET, 2 = POLL)
         :param bool parsebitfield: 0 = parse as bytes, 1 = parse as individual bits
-        :param Literal["A", "B"] unimode: B = BINARY, A = ASCII
         :param kwargs: optional keywords representing payload attributes
         :raises: UNITypeError, UNIMessageError
         """
@@ -107,7 +104,7 @@ class UNIMessage:
         self.timeref = timeref
         self.timestatus = timestatus
         if wno is None or tow is None:  # default to now
-            wno, tow = utc2wnotow()
+            wno, tow, leapsecond = utc2wnotow()
         self.wno = wno
         self.tow = tow
         self.version = version
@@ -116,7 +113,7 @@ class UNIMessage:
         self._mode = msgmode
         self._payload = b""
         self._parsebf = parsebitfield  # parsing bitfields Y/N?
-        self._unimode = unimode  # binary or ascii
+        self._unimode = BINARY
 
         if msgmode not in (GET, SET, POLL):
             raise UNIMessageError(f"Invalid msgmode {msgmode} - must be 0, 1 or 2")
@@ -580,7 +577,7 @@ class UNIMessage:
             umsg_name = UNI_MSGIDS[self._msgid]
         except KeyError:
             # unrecognised Unicore message, parsed to UNI-NOMINAL definition
-            umsg_name = f"{int.from_bytes(self._msgid, 'little'):02x}-NOMINAL"
+            umsg_name = f"{self._msgid}-NOMINAL"
         return umsg_name
 
     @property

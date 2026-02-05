@@ -36,7 +36,7 @@ from time import sleep
 
 from serial import Serial
 
-from pyunigps import NMEA_PROTOCOL, RTCM3_PROTOCOL, UNI_PROTOCOL, UNIReader
+from pyunigps import NMEA_PROTOCOL, RTCM3_PROTOCOL, UNI_PROTOCOL, UNIReader, UNI_MSGIDS
 
 
 def io_data(
@@ -132,23 +132,20 @@ def main(**kwargs):
                 # DO STUFF IN THE BACKGROUND...
                 # enable a selection of UNI protocol messages on COM1 at a rate of 1Hz...
                 count = 0
+                start = 0
+                rng = 99
                 rate = 1 # set to 0 to disable UNI messages
-                for msg in (
-                    "SATSINFO",
-                    "OBVSM",
-                    "AGRIC",
-                    "GPSUTC",
-                    "PVTSLN",
-                    "HWSTATUS",
-                ):
+                for i, msg in enumerate(UNI_MSGIDS.values()):
+                    #if start <= i < rng:
                     # create ASCII TTY message
                     msg = f"{msg}B COM1 {rate}\r\n".encode(
-                        "ascii", errors="backslashreplace"
+                            "ascii", errors="backslashreplace"
                     )
+                    print(f"Sending command {msg=}")
                     send_queue.put(msg)
                     count += 1
-                    sleep(1)
-                # stop_event.set()
+                    sleep(.2)
+                stop_event.set()
                 print(f"{count} ASCII commands sent to receiver.")
 
             except KeyboardInterrupt:  # capture Ctrl-C
