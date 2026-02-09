@@ -48,17 +48,18 @@ GNSS = {
     6: "IRNSS",
     7: "Reserved",
 }
-"""GNSS Satellite System Code"""
+"""SATSINFO GNSS Satellite System Code"""
 
-POSTYPE = {
-    0: "Invalid",
-    1: "Single point",
-    2: "Pseudorange differential",
-    4: "Fixed",
-    5: "Float",
-    7: "Input a fixed position",
+GNSSSAT = {
+    0: "GPS",
+    1: "GLONASS",
+    2: "SBAS",
+    5: "GAL",
+    6: "BDS",
+    7: "QZSS",
+    9: "IRNSS",
 }
-""" Rover Position Status"""
+"""SATELLITE GNSS Satellite System Code"""
 
 CALCSTATUS = {
     0: "No differential data input",
@@ -69,3 +70,45 @@ CALCSTATUS = {
     5: "RTK solution available",
 }
 """RTK Calculate Status"""
+
+POSTYPE = {
+    0: "NONE",  # No solution
+    1: "FIXEDPOS",  #  Position fixed by the FIX POSITION command
+    2: "FIXEDHEIGHT",  #  Not supported currently
+    8: "DOPPLER_VELOCITY",  #  Velocity computed using instantaneous Doppler
+    16: "SINGLE",  #  Single point positioning
+    17: "PSRDIFF",  #  Pseudorange differential solution
+    18: "SBAS",  #  SBAS positioning
+    32: "L1_FLOAT L1",  #  float solution
+    33: "IONOFREE_FLOAT",  #  Ionosphere-free float solution
+    34: "NARROW_FLOAT",  #  Narrow-lane float solution
+    48: "L1_INT",  #  L1 fixed solution
+    49: "WIDE_INT",  #  Wide-lane fixed solution
+    50: "NARROW_INT",  #  Narrow-lane fixed solution
+    52: "INS",  #  Inertial navigation solution
+    53: "INS_PSRSP",  #  Integrated solution of INS and single point positioning
+    54: "INS_PSRDIFF",  #  Integrated solution of INS and pseudorange differential positioning
+    55: "INS_RTKFLOAT",  #  Integrated solution of INS and RTK float
+    56: "INS_RTKFIXED",  #  Integrated solution of INS and RTK fix
+    68: "PPP_CONVERGING",  #  PPP solution converging
+    69: "PPP",  #  Precise Point Positioning
+}
+"""Position/Velocity Type"""
+
+SOLSTATUS = {
+    0: "SOL_COMPUTED",  # Solution computed
+    1: "INSUFFICIENT_OBS",  # Insufficient observation
+    2: "NO_CONVERGENCE",  # No convergence, invalid solution
+    4: "COV_TRACE",  # Covariance matrix trace exceeds maximum (trace > 1000 m)
+}
+"""Solution Status"""
+
+ROVERPOSTYPE = {
+    0: "Invalid",
+    1: "Single point",
+    2: "Pseudorange differential",
+    4: "Fixed",
+    5: "Float",
+    7: "Input a fixed position",
+}
+""" Rover Position Status"""
