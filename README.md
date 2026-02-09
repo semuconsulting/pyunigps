@@ -13,9 +13,7 @@ pyunigps
 [Troubleshooting](#troubleshoot) |
 [Author & License](#author)
 
-# WORK IN PROGRESS
-
-`pyunigps` is an original Python 3 parser for the UNI &copy; protocol. UNI is our term for the proprietary binary and ASCII protocols implemented on Unicore &trade; GNSS receiver modules. `pyunigps` can also parse NMEA 0183 &copy; and RTCM3 &copy; protocols via the underlying [`pynmeagps`](https://github.com/semuconsulting/pynmeagps) and [`pyrtcm`](https://github.com/semuconsulting/pyrtcm) packages from the same author - hence it covers all the protocols that Unicore UNI GNSS receivers are capable of outputting.
+`pyunigps` is an original Python 3 parser for the UNI &copy; protocol. UNI is our term for the proprietary binary data output protocol implemented on Unicore &trade; GNSS receiver modules. `pyunigps` can also parse NMEA 0183 &copy; and RTCM3 &copy; protocols via the underlying [`pynmeagps`](https://github.com/semuconsulting/pynmeagps) and [`pyrtcm`](https://github.com/semuconsulting/pyrtcm) packages from the same author - hence it covers all the protocols that Unicore UNI GNSS receivers are capable of outputting.
 
 The `pyunigps` homepage is located at [https://github.com/semuconsulting/pyunigps](https://github.com/semuconsulting/pyunigps).
 
@@ -32,7 +30,12 @@ This is an independent project and we have no affiliation whatsoever with Unicor
 ![Contributors](https://img.shields.io/github/contributors/semuconsulting/pyunigps.svg)
 ![Open Issues](https://img.shields.io/github/issues-raw/semuconsulting/pyunigps)
 
-This Alpha implements a comprehensive set of messages for Unicore "NebulasIV" High Precision GPS/GNSS devices, which includes the UM96n and UM98n series, but is readily [extensible](#extensibility). The initial Alpha will deliver parsing of binary UNI messages; a later iteration will also support parsing of ASCII UNI messages (*both will produce binary UNIMessage objects*). Refer to [UNI_MSGIDS in unitypes_core.py](https://github.com/semuconsulting/pyunigps/blob/main/src/pyunigps/unitypes_core.py#L86) for the complete list of message definitions currently defined. UNI protocol information sourced from public domain Unicore "NebulasIV" GNSS Protocol Specification © 2023, Unicore.
+This Alpha implements a comprehensive set of messages for Unicore "NebulasIV" High Precision GPS/GNSS devices, including the UM96n and UM98n series, but is readily [extensible](#extensibility). Refer to [UNI_MSGIDS in unitypes_core.py](https://github.com/semuconsulting/pyunigps/blob/main/src/pyunigps/unitypes_core.py#L86) for the complete list of message definitions currently defined. UNI protocol information sourced from public domain Unicore "NebulasIV" GNSS Protocol Specification © 2023, Unicore.
+
+**NB:**
+1. Unicore "NebulasIV" GNSS receivers are configured using TTY commands (ASCII text over serial port) e.g. `"SATSINFO COM1 1\r\n"`. The command response will be an ASCII text message resembling an NMEA sentence e.g. `"$command,STATSINFO COM1 1,response: OK*46\r\n"` or 
+`"$command,SATSXXXX COM1 1,response: PARSING FAILD NO MATCHING FUNC  SATSXXXX*01\r\n"`.
+1. Unicore data output messages also exist in an ASCII text form - whereby message IDs are appended with 'A' rather than 'B'.
 
 Sphinx API Documentation in HTML format is available at [https://www.semuconsulting.com/pyunigps/](https://www.semuconsulting.com/pyunigps/).
 
@@ -241,12 +244,9 @@ class pyunigps.UNImessage.UNIMessage(msggrp, msgid, **kwargs)
 ```
 
 You can create a `UNIMessage` object by calling the constructor with the following parameters:
-1. message group (must be a valid group from `pyunigps.UNI_MSGIDS`)
-2. message id (must be a valid id from `pyunigps.UNI_MSGIDS`)
-3. (optional) a series of keyword parameters representing the message payload
-4. (optional) `parsebitfield` keyword - 1 = define bitfields as individual bits (default), 0 = define bitfields as byte sequences
-
-The 'message group' and 'message id' parameters must be passed as bytes.
+1. message id in each integer or string format (must be a valid id or name from `pyunigps.UNI_MSGIDS`)
+2. (optional) a series of keyword parameters representing the message header and payload.
+3. (optional) `parsebitfield` keyword - 1 = define bitfields as individual bits (default), 0 = define bitfields as byte sequences.
 
 The message payload can be defined via keyword arguments in one of three ways:
 1. A single keyword argument of `payload` containing the full payload as a sequence of bytes (any other keyword arguments will be ignored). **NB** the `payload` keyword argument *must* be used for message types which have a 'variable by size' repeating group.

@@ -30,6 +30,7 @@ from pyunigps.unihelpers import (
     key_from_val,
     msgname2id,
     nomval,
+    str2val,
     utc2wnotow,
     val2bytes,
 )
@@ -57,8 +58,8 @@ class StaticTest(unittest.TestCase):
         self.assertEqual(res, b"\x70\x19\x8f\x95")
 
     def testmsgname2id(self):
-        self.assertEqual(msgname2id("VERSION"), 17)
-        self.assertEqual(msgname2id("version"), 17)
+        self.assertEqual(msgname2id("VERSION"), 37)
+        self.assertEqual(msgname2id("version"), 37)
         self.assertEqual(msgname2id("PPPNAV"), 1026)
         self.assertEqual(msgname2id("XXXXX"), None)
 
@@ -200,13 +201,14 @@ class StaticTest(unittest.TestCase):
 
     def testutc2wnotow(self):
         dat = datetime(2026, 1, 28, 9, 34, 12, 234000, tzinfo=timezone.utc)
-        wno, tow = utc2wnotow(dat)
-        # print(wno, tow)
-        self.assertEqual((wno, tow), (2403, 293652234))
-        wno, tow = utc2wnotow()
-        # print(wno, tow)
+        wno, tow, ls = utc2wnotow(dat)
+        # print(wno, tow, ls)
+        self.assertEqual((wno, tow), (2403, 293670234))
+        wno, tow, ls = utc2wnotow()
+        # print(wno, tow, ls)
         self.assertIsInstance(wno, int)
         self.assertIsInstance(tow, int)
+        self.assertIsInstance(ls, int)
 
     def testheader2bytes(self):
         t = header2bytes(msgid=17, length=308, cpuidle=0, wno=2406, tow=34675834)
@@ -247,6 +249,16 @@ class StaticTest(unittest.TestCase):
         self.assertEqual(crcb, b'\x54\xb2\x95\xe1')
         with self.assertRaisesRegex(une.UNIMessageError, 'Badly formed ASCII message #VERSIONA,94,GPS,FINE,2190,"HRPT00-S10C-P","-","ffff48ffff0fffff","2021/11/26"'):
             get_parts(BADMESSAGE)
+
+    def teststr2val(self):
+        self.assertEqual(str2val('23',"U001"), 23)
+        self.assertEqual(str2val('-128',"S001"), -128)
+        self.assertEqual(str2val('34.123',"R004"), 34.123)
+        self.assertEqual(str2val('UM980 ',"C006"), "UM980 ")
+        self.assertEqual(str2val('34e2b1a6',"X004"), 2796675636)
+        with self.assertRaisesRegex(une.UNITypeError, "Unknown attribute type Y."):
+            str2val('34e2b1a6',"Y004")
+
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']

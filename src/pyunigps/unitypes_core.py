@@ -29,8 +29,6 @@ UNI_PROTOCOL = 2
 """UNI Binary Protocol"""
 RTCM3_PROTOCOL = 4
 """RTCM3 Protocol"""
-UNI_ASCII_PROTOCOL = 8
-"""UNI ASCII Protocol"""
 ERR_RAISE = 2
 """Raise error and quit"""
 ERR_LOG = 1
@@ -90,7 +88,7 @@ ATTTYPE = {
 # Payloads for each of these identities are defined in the unitypes_* modules
 # ***************************************************************************
 UNI_MSGIDS = {
-    17: "VERSION",  # Version and Authorization
+    37: "VERSION",  # Version and Authorization
     12: "OBSVM",  # Observation of the Main Antenna
     13: "OBSVH",  # Observation of the 2nd Antenna
     138: "OBSVMCMP",  # Compressed Observation of the Main Antenna

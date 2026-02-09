@@ -1,8 +1,13 @@
 # pyunigps Release Notes
 
+### RELEASE 0.1.3
+
+1. Update message definitions
+1. Enhance test coverage
+
 ### RELEASE 0.1.2
 
-1. Enhance test coverage
+1. Add message definitions; Enhance test coverage
 
 ### RELEASE 0.1.1
 

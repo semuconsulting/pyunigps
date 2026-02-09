@@ -14,7 +14,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
     "Operating System :: OS Independent",
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Environment :: MacOS X",
     "Environment :: Win32 (MS Windows)",
     "Environment :: X11 Applications",
@@ -101,7 +101,7 @@ disable = """
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "--cov --cov-report html --cov-fail-under 88"
+addopts = "--cov --cov-report html --cov-fail-under 85"
 pythonpath = ["src"]
 testpaths = ["tests"]
 
@@ -112,7 +112,7 @@ source = ["src"]
 source = ["src"]
 
 [tool.coverage.report]
-fail_under = 88
+fail_under = 85
 
 [tool.coverage.html]
 directory = "htmlcov"

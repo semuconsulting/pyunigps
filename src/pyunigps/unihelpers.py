@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from types import NoneType
 from typing import Any
 
+from pynmeagps import leapsecond
+
 import pyunigps.exceptions as une
 from pyunigps.unitypes_core import ATTTYPE, U4, UNI_MSGIDS
 
@@ -361,7 +363,7 @@ def bytes2val(valb: bytes, att: str) -> Any:
     if atttyp(att) == "X":  # bytes
         val = valb
     elif atttyp(att) == "C":  # string
-        val = valb.decode("utf-8", errors="backslashreplace")
+        val = valb.replace(b"\x00", b" ").decode("utf-8", errors="backslashreplace")
     elif atttyp(att) in ("S", "U"):  # integer
         val = int.from_bytes(valb, byteorder="little", signed=atttyp(att) == "S")
     elif atttyp(att) == "R":  # floating point
@@ -493,7 +495,7 @@ def header2bytes(
     """
 
     if wno is None or tow is None:
-        wno, tow = utc2wnotow()
+        wno, tow, leapsecond = utc2wnotow()
     return struct.pack(
         "<BHHBBHLLBBH",
         cpuidle,
@@ -582,24 +584,53 @@ def nomval(att: str) -> Any:
     return val
 
 
-def utc2wnotow(utc: datetime | NoneType = None) -> tuple[int, int]:
+def str2val(valstr: str, adef: str) -> object:
     """
-    Get GPS Week number (wno) and Time of Week (tow)
-    in milliseconds for given utc datetime.
+    Convert ASCII string to typed value
+
+    :param str valstr: attribute value as string
+    :param str adef: attribute type e.g. 'R001'
+    :return: attribute value
+    :rtype: object
+    :raises: UNITypeError
+    """
+
+    att = atttyp(adef)
+    val = valstr
+    if att == "C":  # char
+        pass
+    elif att == "X":  # hex
+        val = int.from_bytes(bytes.fromhex(val), "little")
+    elif att == "R":  # float
+        if valstr != "":
+            val = float(valstr)
+    elif att in ("S", "U"):  # signed or unsigned integer
+        if valstr != "":
+            val = int(valstr)
+    else:
+        raise une.UNITypeError(f"Unknown attribute type {att}.")
+    return val
+
+
+def utc2wnotow(utc: datetime | NoneType = None) -> tuple[int, int, int]:
+    """
+    Get GPS Week number (wno), Time of Week (tow) in milliseconds
+    and leapsecond offset for given utc datetime.
 
     GPS Epoch 0 = 6th Jan 1980
 
     :param datetime | NoneType utc: utc datetime (defaults to now if None)
-    :return: wno, tow
-    :rtype: tuple[int,int]
+    :return: wno, tow, leapsecond
+    :rtype: tuple[int,int, int]
     """
 
     if utc is None:
         utc = datetime.now(tz=timezone.utc)
-    ts = (utc - GPSEPOCH0).total_seconds() * 1000
+    ls = leapsecond(utc.replace(tzinfo=None))  # method is not tz aware
+    ts = ((utc - GPSEPOCH0).total_seconds() + ls) * 1000
     wno = int((utc - GPSEPOCH0).days / 7)
     tow = int(ts - wno * 604800000)
-    return wno, tow
+    return wno, tow, ls
 
 
 def val2bytes(val: Any, att: str) -> bytes:

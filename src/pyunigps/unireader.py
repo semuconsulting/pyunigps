@@ -14,7 +14,7 @@ UNI binary message format (little-endian):
 |                  header = 24 bytes                 |          |         |
 +----------+---------+---------+---------+-----------+----------+---------+
 
-UNI ascii message format (comma-delimited fields, with header and payload
+UNI ascii message format (comma-delimited, with header and payload
 separated by ";" and payload and checksum separated by "*"):
 
 +------+---------------+---------+----------+---------+-----------+
@@ -30,6 +30,18 @@ timeinfo:
 +=========+==========+=========+=========+=========+==========+=========+=========+
 | 1 byte  |  1 byte  | 2 bytes | 4 bytes | 4 bytes |  1 byte  | 1 byte  | 2 bytes |
 +---------+----------+---------+---------+---------+----------+---------+---------+
+
+Command response format (comma-delimited):
+
++------------+---------+--------------+-----------------------+---------+
+|    sync    | command |   response   |     response code     | crc     |
++============+=========+==============+=======================+=========+
+| "$command" |  text   | "response: " | "OK" or error message | 2 bytes |
++------------+---------+--------------+-----------------------+---------+
+
+e.g.
+`$command,STATSINFO COM1 1,response: OK*46`
+`$command,SATSXXXX COM1 1,response: PARSING FAILD NO MATCHING FUNC  SATSXXXX*01`
 
 Returns both the raw binary data (as bytes) and the parsed data
 (as an UNIMessage object).
@@ -55,11 +67,9 @@ from pynmeagps import NMEA_HDR, NMEAMessage, NMEAReader, SocketWrapper
 from pyrtcm import RTCMMessage, RTCMReader
 
 from pyunigps.exceptions import GNSSERRORS, UNIParseError, UNIStreamError
-from pyunigps.unihelpers import calc_crc, escapeall, get_parts, header2vals
+from pyunigps.unihelpers import calc_crc, escapeall, header2vals
 from pyunigps.unimessage import UNIMessage
 from pyunigps.unitypes_core import (
-    ASCII,
-    BINARY,
     ERR_LOG,
     ERR_RAISE,
     GET,
@@ -68,7 +78,6 @@ from pyunigps.unitypes_core import (
     RTCM3_PROTOCOL,
     SET,
     SETPOLL,
-    UNI_ASCII_PROTOCOL,
     UNI_HDR,
     UNI_PROTOCOL,
     VALCKSUM,
@@ -98,8 +107,8 @@ class UNIReader:
         :param int msgmode: 0=GET, 1=SET, 2=POLL, 3=SETPOLL (0)
         :param int validate: VALCKSUM (1) = Validate checksum,
             VALNONE (0) = ignore invalid checksum (1)
-        :param int protfilter: NMEA_PROTOCOL (1), UNI_PROTOCOL (2), RTCM3_PROTOCOL (4),
-            UNI_ASCII_PROTOCOL (8), Can be OR'd (7)
+        :param int protfilter: NMEA_PROTOCOL (1), UNI_PROTOCOL (2), RTCM3_PROTOCOL (4).
+            Can be OR'd (7)
         :param int quitonerror: ERR_IGNORE (0) = ignore errors,  ERR_LOG (1) = log continue,
             ERR_RAISE (2) = (re)raise (1)
         :param bool parsebitfield: 1 = parse bitfields, 0 = leave as bytes (1)
@@ -159,10 +168,6 @@ class UNIReader:
         :raises: Exception (if invalid or unrecognised protocol in data stream)
         """
 
-        hbs = (b"\xaa", b"\x24", b"\xd3")
-        if self._protfilter & UNI_ASCII_PROTOCOL:
-            hbs += (b"\x23",)  # "#"
-
         parsing = True
         raw_data = parsed_data = None
         while parsing:  # loop until end of valid message or EOF
@@ -172,13 +177,8 @@ class UNIReader:
                 parsed_data = None
                 byte1 = self._read_bytes(1)  # read the first byte
                 # if not UNI, NMEA or RTCM3, discard and continue
-                if byte1 not in hbs:
+                if byte1 not in (b"\xaa", b"\x24", b"\xd3"):
                     continue
-                if byte1 == b"\x23":  # ascii UNI
-                    raw_data, parsed_data = self._parse_uni_ascii(byte1)
-                    if self._protfilter & UNI_ASCII_PROTOCOL:
-                        parsing = False
-                        continue
                 byte2 = self._read_bytes(1)
                 bytehdr = byte1 + byte2
                 if bytehdr == UNI_HDR[0:2]:  # binary UNI
@@ -187,7 +187,7 @@ class UNIReader:
                     # if it's a UNI message (b'\xaa\x44\b5')
                     if bytehdr != UNI_HDR:
                         continue
-                    raw_data, parsed_data = self._parse_uni_binary(bytehdr)
+                    raw_data, parsed_data = self._parse_uni(bytehdr)
                     # if protocol filter passes UNI, return message,
                     # otherwise discard and continue
                     if self._protfilter & UNI_PROTOCOL:
@@ -226,7 +226,7 @@ class UNIReader:
 
         return (raw_data, parsed_data)
 
-    def _parse_uni_binary(self, hdr: bytes) -> tuple[bytes, UNIMessage | NoneType]:
+    def _parse_uni(self, hdr: bytes) -> tuple[bytes, UNIMessage | NoneType]:
         """
         Parse binary UNI message.
 
@@ -246,30 +246,6 @@ class UNIReader:
                 msgmode=self._msgmode,
                 validate=self._validate,
                 parsebitfield=self._parsebf,
-                unimode=BINARY,
-            )
-        else:
-            parsed_data = None
-        return (raw_data, parsed_data)
-
-    def _parse_uni_ascii(self, hdr: bytes) -> tuple[bytes, UNIMessage | NoneType]:
-        """
-        Parse ascii UNI message.
-
-        :param bytes hdr: UNI ascii header (b"\\x23")
-        :return: tuple of (raw_data as bytes, parsed_data as UNIMessage or None)
-        :rtype: tuple[bytes, UNIMessage | NoneType]
-        """
-
-        raw_data = hdr + self._read_line()
-        # only parse if we need to (filter passes UNI)
-        if (self._protfilter & UNI_ASCII_PROTOCOL) and self._parsing:
-            parsed_data = UNIReader.parse(
-                raw_data,
-                msgmode=self._msgmode,
-                validate=self._validate,
-                parsebitfield=self._parsebf,
-                unimode=ASCII,
             )
         else:
             parsed_data = None
@@ -399,45 +375,9 @@ class UNIReader:
         msgmode: int = GET,
         validate: int = VALCKSUM,
         parsebitfield: bool = True,
-        unimode: int = BINARY,
     ) -> UNIMessage:
         """
-        Parse UNI byte stream to UNIMessage object.
-
-        :param bytes message: binary or ASCII message to parse
-        :param int msgmode: GET (0), SET (1), POLL (2) (0)
-        :param int validate: VALCKSUM (1) = Validate checksum,
-            VALNONE (0) = ignore invalid checksum (1)
-        :param bool parsebitfield: 1 = parse bitfields, 0 = leave as bytes (1)
-        :param int unimode: 0 = BINARY, 1 = ASCII
-        :return: UNIMessage object
-        :rtype: UNIMessage
-        :raises: Exception (if data stream contains invalid data or unknown message type)
-        """
-
-        if msgmode not in (GET, SET, POLL, SETPOLL):
-            raise UNIParseError(
-                f"Invalid message mode {msgmode} - must be 0, 1, 2 or 3"
-            )
-
-        if unimode == BINARY:
-            return UNIReader.parse_binary(message, msgmode, validate, parsebitfield)
-        return UNIReader.parse_ascii(
-            message,
-            msgmode,
-            validate,
-            parsebitfield,
-        )
-
-    @staticmethod
-    def parse_binary(
-        message: bytes,
-        msgmode: int = GET,
-        validate: int = VALCKSUM,
-        parsebitfield: bool = True,
-    ) -> UNIMessage:
-        """
-        Parse UNI binary stream to UNIMessage object.
+        Parse binary UNI byte stream to UNIMessage object.
 
         :param bytes message: binary message to parse
         :param int msgmode: GET (0), SET (1), POLL (2) (0)
@@ -446,8 +386,13 @@ class UNIReader:
         :param bool parsebitfield: 1 = parse bitfields, 0 = leave as bytes (1)
         :return: UNIMessage object
         :rtype: UNIMessage
-        :raises: Exception (if data stream contains invalid data or unknown message type)
+        :raises: UNIParseError (if data stream contains invalid data or unknown message type)
         """
+
+        if msgmode not in (GET, SET, POLL, SETPOLL):
+            raise UNIParseError(
+                f"Invalid message mode {msgmode} - must be 0, 1, 2 or 3"
+            )
 
         lenm = len(message)
         crcb = message[lenm - 4 : lenm]
@@ -514,68 +459,3 @@ class UNIReader:
             payload=payload,
         )
         return parsed_data
-
-    @staticmethod
-    def parse_ascii(
-        message: bytes,
-        msgmode: int = GET,
-        validate: int = VALCKSUM,
-        parsebitfield: bool = True,
-    ) -> UNIMessage:
-        """
-        Parse UNI ASCII stream to UNIMessage object.
-
-        :param str message: ASCII message to parse
-        :param int msgmode: GET (0), SET (1), POLL (2) (0)
-        :param int validate: VALCKSUM (1) = Validate checksum,
-            VALNONE (0) = ignore invalid checksum (1)
-        :param bool parsebitfield: 1 = parse bitfields, 0 = leave as bytes (1)
-        :return: UNIMessage object
-        :rtype: UNIMessage
-        :raises: Exception (if data stream contains invalid data or unknown message type)
-        """
-
-        (
-            (
-                msgname,
-                cpuidle,
-                timeref,
-                timestatus,
-                wno,
-                tow,
-                version,
-                _,
-                leapsecond,
-                delay,
-            ),
-            payload,
-            crcb,
-        ) = get_parts(message)
-
-        crc = calc_crc(message[1:-10])
-        if validate & VALCKSUM:
-            if crc != crcb:
-                raise UNIParseError(
-                    (
-                        f"Message checksum {escapeall(crcb)}"
-                        f" invalid - should be {escapeall(crc)}"
-                    )
-                )
-
-        return UNIMessage(
-            msgid=msgname[:-1],  # remove "A" suffix
-            length=None,
-            cpuidle=int(cpuidle),
-            timeref={"GPS": 0, "BDS": 1}.get(timeref, 0),
-            timestatus={"UNKNOWN": 0, "FINE": 1}.get(timestatus, 0),
-            wno=int(wno),
-            tow=int(tow),
-            version=int(version),
-            leapsecond=int(leapsecond),
-            delay=int(delay),
-            checksum=crcb,
-            msgmode=msgmode,
-            parsebitfield=parsebitfield,
-            dummy=0,  # TODO parse from payload tuple, this is just a dummy filler
-            # payload=payload,
-        )
