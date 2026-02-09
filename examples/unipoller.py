@@ -1,15 +1,15 @@
 """
 unipoller.py
 
-This example illustrates how to read, write and display UNI messages
-"concurrently" using threads and queues. This represents a useful
-generic pattern for many end user applications.
+This example illustrates how to read and display UNI messages
+while "concurrently" sending ASCII configuration commands. This
+represents a useful generic pattern for many end user applications.
 
 Usage:
 
-python3 unipoller.py port="/dev/ttyACM0" baudrate=38400 timeout=0.1 protfilter=2
+python3 unipoller.py port="/dev/ttyACM0" baudrate=115200 timeout=3 protfilter=2
 
-It implements two threads which run concurrently:
+It implements two threads which run "concurrently":
 1) an I/O thread which continuously reads UNI data from the
 receiver and sends any queued outbound ASCII commands.
 2) a process thread which processes parsed UNI data - in this example
@@ -17,10 +17,6 @@ it simply prints the parsed data to the terminal.
 UNI data is passed between threads using queues.
 
 Press CTRL-C to terminate.
-
-FYI: Since Python implements a Global Interpreter Lock (GIL),
-threads are not strictly concurrent, though this is of minor
-practical consequence here.
 
 Created on 26 Jan 2026
 
@@ -36,7 +32,7 @@ from time import sleep
 
 from serial import Serial
 
-from pyunigps import NMEA_PROTOCOL, RTCM3_PROTOCOL, UNI_PROTOCOL, UNIReader, UNI_MSGIDS
+from pyunigps import NMEA_PROTOCOL, RTCM3_PROTOCOL, UNI_MSGIDS, UNI_PROTOCOL, UNIReader
 
 
 def io_data(
@@ -130,21 +126,20 @@ def main(**kwargs):
         while not stop_event.is_set():
             try:
                 # DO STUFF IN THE BACKGROUND...
-                # enable a selection of UNI protocol messages on COM1 at a rate of 1Hz...
+                # e.g. enable all available binary UNI data output types
+                # on COM1 at a rate of 1Hz...
+                # NB: apply `config com1 460800` first to ensure output
+                # buffer can handle this volume of output messages
                 count = 0
-                start = 0
-                rng = 99
-                rate = 1 # set to 0 to disable UNI messages
-                for i, msg in enumerate(UNI_MSGIDS.values()):
-                    #if start <= i < rng:
-                    # create ASCII TTY message
+                rate = 1  # set to 0 to disable UNI messages
+                for msg in UNI_MSGIDS.values():
                     msg = f"{msg}B COM1 {rate}\r\n".encode(
-                            "ascii", errors="backslashreplace"
+                        "ascii", errors="backslashreplace"
                     )
                     print(f"Sending command {msg=}")
                     send_queue.put(msg)
                     count += 1
-                    sleep(.2)
+                    sleep(0.2)
                 stop_event.set()
                 print(f"{count} ASCII commands sent to receiver.")
 
