@@ -58,7 +58,6 @@ class StreamTest(unittest.TestCase):
             # print(f'"{parsed}",')
             self.assertEqual(str(parsed), EXPECTED_PARSED[i])
             self.assertEqual(parsed.msgmode, 0)
-            self.assertEqual(parsed.unimode, "B")
             self.assertEqual(isvalid_checksum(raw), True)
             i += 1
         self.assertEqual(i, len(DATA))
@@ -111,10 +110,10 @@ class StreamTest(unittest.TestCase):
             i = 0
             for raw, parsed in unr:
                 # print(f'"{parsed}",')
+                print(f"{raw},")
                 # fout.write(f'"{str(parsed)}",\r\n')
                 self.assertEqual(str(parsed), EXPECTED_RESULTS[i])
                 self.assertEqual(parsed.msgmode, 0)
-                self.assertEqual(parsed.unimode, "B")
                 self.assertEqual(isvalid_checksum(raw), True)
                 self.assertIsInstance(unr.datastream,BufferedReader)
                 i += 1
@@ -220,7 +219,7 @@ class StreamTest(unittest.TestCase):
         self.assertEqual(msg.checksum, b"\xa2_\x8a\xd4")
         self.assertEqual(str(eval(repr(msg))), EXPECTED_RESULT)
         msg1 = UNIReader.parse(msg.serialize())
-        print(msg.serialize())
+        # print(msg.serialize())
         self.assertEqual(str(msg1), EXPECTED_RESULT)
 
     def testconstructSATSINFO(self):
@@ -346,10 +345,10 @@ class StreamTest(unittest.TestCase):
             efuseid="ffff48ffff0fffff",
             comptime="2021/11/26",
         )
-        print(msg.serialize())
+        # print(msg.serialize())
         self.assertEqual(msg.serialize(), EXPECTED_RAW)
         msg = UNIReader.parse(msg.serialize())
-        print(msg)
+        # print(msg)
         self.assertEqual(str(msg), EXPECTED_PARSE)
         self.assertEqual(str(eval(repr(msg))), str(msg))
 
@@ -411,7 +410,7 @@ class StreamTest(unittest.TestCase):
             )
             for raw, parsed in ubr:
                 i += 1
-            print(i)
+            # print(i)
             self.assertEqual(i, 39)
 
     def testmixedfilterednmea(self):  # test mixed protocol parsing with protfilters
@@ -485,7 +484,8 @@ class StreamTest(unittest.TestCase):
             with open(os.path.join(DIRNAME, "pygpsdata_um981terminated.log"), "rb") as stream:
                 unr = UNIReader(stream, quitonerror=ERR_RAISE)
                 for raw, parsed in unr:
-                    print(parsed)
+                    pass
+                    # print(parsed)
 
     def testterminatedloghandler(self): # unexpected stream termination, log error and continue
         def printerr(err):

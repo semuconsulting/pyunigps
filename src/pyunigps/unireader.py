@@ -4,6 +4,13 @@ UNIReader class.
 Reads and parses individual UNI messages from any viable
 data stream which supports a read(n) -> bytes method.
 
+Returns both the raw binary data (as bytes) and the parsed data
+(as an UNIMessage object).
+
+- 'protfilter' governs which protocols (NMEA, UNI or RTCM3) are processed
+- 'quitonerror' governs how errors are handled
+- 'parsing' governs whether messages are fully parsed
+
 UNI binary message format (little-endian):
 
 +----------+---------+---------+---------+-----------+----------+---------+
@@ -14,15 +21,6 @@ UNI binary message format (little-endian):
 |                  header = 24 bytes                 |          |         |
 +----------+---------+---------+---------+-----------+----------+---------+
 
-UNI ascii message format (comma-delimited, with header and payload
-separated by ";" and payload and checksum separated by "*"):
-
-+------+---------------+---------+----------+---------+-----------+
-| sync |    msgname    | cpuidle | timeinfo | payload |   crc     |
-+======+===============+=========+==========+=========+===========+
-|  #   |    header = "MSGNAME,,,,,,,,,;"    |         | *nnnnnnnn |
-+------+---------------+---------+----------+---------+-----------+
-
 timeinfo:
 
 +---------+----------+---------+---------+---------+----------+---------+---------+
@@ -31,24 +29,11 @@ timeinfo:
 | 1 byte  |  1 byte  | 2 bytes | 4 bytes | 4 bytes |  1 byte  | 1 byte  | 2 bytes |
 +---------+----------+---------+---------+---------+----------+---------+---------+
 
-Command response format (comma-delimited):
+Command response format - comma-delimited ASCII text:
 
-+------------+---------+--------------+-----------------------+---------+
-|    sync    | command |   response   |     response code     | crc     |
-+============+=========+==============+=======================+=========+
-| "$command" |  text   | "response: " | "OK" or error message | 2 bytes |
-+------------+---------+--------------+-----------------------+---------+
+`$command,SATSINFOB COM1 1,response: OK*46`
 
-e.g.
-`$command,STATSINFO COM1 1,response: OK*46`
-`$command,SATSXXXX COM1 1,response: PARSING FAILD NO MATCHING FUNC  SATSXXXX*01`
-
-Returns both the raw binary data (as bytes) and the parsed data
-(as an UNIMessage object).
-
-- 'protfilter' governs which protocols (NMEA, UNI or RTCM3) are processed
-- 'quitonerror' governs how errors are handled
-- 'parsing' governs whether messages are fully parsed
+`$command,SATSXXXXB COM1 1,response: PARSING FAILD NO MATCHING FUNC  SATSXXXXB*01`
 
 Created on 26 Jan 2026
 
@@ -61,7 +46,7 @@ Created on 26 Jan 2026
 
 from logging import getLogger
 from socket import socket
-from types import NoneType
+from types import FunctionType, NoneType
 
 from pynmeagps import NMEA_HDR, NMEAMessage, NMEAReader, SocketWrapper
 from pyrtcm import RTCMMessage, RTCMReader
@@ -99,7 +84,7 @@ class UNIReader:
         parsebitfield: bool = True,
         bufsize: int = 4096,
         parsing: bool = True,
-        errorhandler: object = None,
+        errorhandler: FunctionType | NoneType = None,
     ):
         """Constructor.
 
@@ -114,7 +99,7 @@ class UNIReader:
         :param bool parsebitfield: 1 = parse bitfields, 0 = leave as bytes (1)
         :param int bufsize: socket recv buffer size (4096)
         :param bool parsing: True = parse data, False = don't parse data (output raw only) (True)
-        :param object errorhandler: error handling object or function (None)
+        :param FunctionType | NoneType errorhandler: error handling object or function (None)
         :raises: UNIStreamError (if mode is invalid)
         """
 
@@ -141,12 +126,14 @@ class UNIReader:
 
         return self
 
-    def __next__(self) -> tuple:
+    def __next__(
+        self,
+    ) -> tuple[bytes | NoneType, UNIMessage | NMEAMessage | RTCMMessage | NoneType]:
         """
         Return next item in iteration.
 
         :return: tuple of (raw_data as bytes, parsed_data as UNIMessage)
-        :rtype: tuple
+        :rtype: tuple[bytes | NoneType, UNIMessage | NMEAMessage | RTCMMessage | NoneType]
         :raises: StopIteration
 
         """
@@ -156,7 +143,9 @@ class UNIReader:
             raise StopIteration
         return (raw_data, parsed_data)
 
-    def read(self) -> tuple:
+    def read(
+        self,
+    ) -> tuple[bytes | NoneType, UNIMessage | NMEAMessage | RTCMMessage | NoneType]:
         """
         Read a single UNI message from the stream buffer
         and return both raw and parsed data.
@@ -164,7 +153,7 @@ class UNIReader:
         'quitonerror' determines whether to raise, log or ignore parsing errors.
 
         :return: tuple of (raw_data as bytes, parsed_data as UNIMessage)
-        :rtype: tuple
+        :rtype: tuple[bytes | NoneType, UNIMessage | NMEAMessage | RTCMMessage | NoneType]
         :raises: Exception (if invalid or unrecognised protocol in data stream)
         """
 
