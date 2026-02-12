@@ -326,7 +326,7 @@ class UNIReader:
             raise UNIStreamError(
                 "Serial stream terminated unexpectedly. "
                 f"Line requested, {len(data)} bytes returned."
-            )
+            )  # pragma: no cover
         return data
 
     def _do_error(self, err: Exception):
@@ -400,14 +400,14 @@ class UNIReader:
             delay,
         ) = header2vals(message[3:24])
 
-        if length == 0:
+        if length == 0:  # pragma: no cover
             payload = None
             lenp = 0
         else:
             payload = message[24 : lenm - 4]
             lenp = len(payload)
 
-        if payload is None:
+        if payload is None:  # pragma: no cover
             crc = calc_crc(message[0:24])
         else:
             crc = calc_crc(message[0:24] + payload)

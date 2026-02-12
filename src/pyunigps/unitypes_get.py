@@ -1335,25 +1335,6 @@ UNI_PAYLOADS_GET = {
         "numsats": U4,
         "satslist": U4,
     },
-    # TODO remove after Alpha:
-    "TEST12": {"data": U3, "mode": U2},
-    "TEST14": {
-        "data": U3,
-        "mode": U2,
-        "status": (
-            X1,
-            {
-                "active": U4,
-                "jamming": U2,
-                "validpos": U2,
-            },
-        ),
-        "numSV": U2,
-        "groupsv": (
-            "numSV",
-            {"svid": U2, "cno": U2},
-        ),
-    },
     # ********************************************************************
     # UNI nominal payload definition, used as fallback where no documented
     # payload definition is available.

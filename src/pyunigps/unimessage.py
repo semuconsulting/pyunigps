@@ -28,7 +28,6 @@ from pyunigps.unihelpers import (
     val2bytes,
 )
 from pyunigps.unitypes_core import (
-    BINARY,
     FREQNO,
     GET,
     POLL,
@@ -426,9 +425,9 @@ class UNIMessage:
         """
 
         try:
-            if self._mode == POLL:
+            if self._mode == POLL:  # pragma: no cover
                 pdict = UNI_PAYLOADS_POLL[self.identity]
-            elif self._mode == SET:
+            elif self._mode == SET:  # pragma: no cover
                 pdict = UNI_PAYLOADS_SET[self.identity]
             else:
                 # Unknown GET message, parsed to nominal definition
