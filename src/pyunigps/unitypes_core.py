@@ -167,7 +167,4 @@ UNI_MSGIDS = {
     1316: "BSLNENUHD2",  # Heading2 Baseline in ENU Coordinate System
     1317: "BSLNXYZHD2",  # Heading2 Baseline in XYZ Coordinate System
     1333: "DOPHD2",  # DOP of Heading2
-    # TODO remove after Alpha..
-    65512: "TEST12",
-    65514: "TEST14",
 }

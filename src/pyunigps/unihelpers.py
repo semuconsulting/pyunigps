@@ -473,7 +473,7 @@ def header2bytes(
     wno: int | NoneType = None,
     tow: int | NoneType = None,
     version: int = 0,
-    leapsecond: int = 0,
+    leapsec: int = 0,
     delay: int = 0,
 ) -> bytes:
     """
@@ -488,14 +488,14 @@ def header2bytes(
     :param int | NoneType wno: week no (defaults to now if None)
     :param int | NoneType tow: time of week (defaults to now if None)
     :param int version: message version
-    :param int leapsecond: leap second
+    :param int leapsec: leap second
     :param int delay: delay in ms
     :return: header as bytes
     :rtype: bytes
     """
 
     if wno is None or tow is None:
-        wno, tow, leapsecond = utc2wnotow()
+        wno, tow, leapsec = utc2wnotow()
     return struct.pack(
         "<BHHBBHLLBBH",
         cpuidle,
@@ -507,7 +507,7 @@ def header2bytes(
         tow,
         version,
         0,  # reserved
-        leapsecond,
+        leapsec,
         delay,
     )
 

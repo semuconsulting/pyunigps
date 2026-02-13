@@ -2,21 +2,28 @@
 unipoller.py
 
 This example illustrates how to read and display UNI messages
-while "concurrently" sending ASCII configuration commands. This
+while simultaneously sending ASCII configuration commands. This
 represents a useful generic pattern for many end user applications.
 
 Usage:
 
-python3 unipoller.py port="/dev/ttyACM0" baudrate=115200 timeout=3 protfilter=2
-
-It implements two threads which run "concurrently":
-1) an I/O thread which continuously reads UNI data from the
-receiver and sends any queued outbound ASCII commands.
-2) a process thread which processes parsed UNI data - in this example
-it simply prints the parsed data to the terminal.
-UNI data is passed between threads using queues.
+python3 unipoller.py port="/dev/ttyACM0" baudrate=115200 timeout=3
+   protfilter=2 enable=1 sysport=COM1
 
 Press CTRL-C to terminate.
+
+FYI Unicore "NebulasIV" GNSS receivers like the UM980 are configured using
+ASCII text commands e.g.
+
+`SATSINFOB COM1 1`.
+
+The command response will be an ASCII text message resembling an NMEA sentence e.g.
+
+`$command,SATSINFOB COM1 1,response: OK*46`
+
+or
+
+`$command,SATSXXXXB COM1 1,response: PARSING FAILD NO MATCHING FUNC  SATSXXXXB*01`.
 
 Created on 26 Jan 2026
 
@@ -81,6 +88,16 @@ def process_data(queue: Queue, stop: Event):
             queue.task_done()
 
 
+def send_command(msg: str, queue: Queue):
+    """
+    Send ASCII configuration command to receiver.
+    """
+
+    msgb = f"{msg}\r\n".encode("ascii", errors="backslashreplace")
+    print(f"Sending command {msg=}")
+    queue.put(msgb)
+
+
 def main(**kwargs):
     """
     Main routine.
@@ -92,6 +109,8 @@ def main(**kwargs):
     protfilter = int(
         kwargs.get("protfilter", NMEA_PROTOCOL | UNI_PROTOCOL | RTCM3_PROTOCOL)
     )
+    sysport = kwargs.get("sysport", "COM1")
+    enable = int(kwargs.get("enable", 1))
     read_queue = Queue()
     send_queue = Queue()
     stop_event = Event()
@@ -125,19 +144,27 @@ def main(**kwargs):
         # loop until user presses Ctrl-C
         while not stop_event.is_set():
             try:
-                # DO STUFF IN THE BACKGROUND...
-                # e.g. enable all available binary UNI data output types
-                # on COM1 at a rate of 1Hz...
-                # NB: apply `config com1 460800` first to ensure output
-                # buffer can handle this volume of output messages
+                # DO STUFF IN THE BACKGROUND e.g.
+                # Enable all available binary UNI data output types
+                # on COM1 at a rate of 1Hz.
+                # To disable messages, use the `unlog` command e.g.
+                # `unlog COM1 SATSINFOB`.
+                #
+                # You may see a number of `Unknown protocol header b'$c'.`
+                # messages in the output - these are simply the ASCII
+                # command acknowledgements from the receiver.
+                #
+                # NB: you may need to apply `config COM1 460800` first to ensure
+                # output buffer can handle this volume of output messages, e.g.
+                # msg = f"config {sysport} 460800"
+                # send_command(msg, send_queue)
                 count = 0
-                rate = 1  # set to 0 to disable UNI messages
                 for msg in UNI_MSGIDS.values():
-                    msg = f"{msg}B COM1 {rate}\r\n".encode(
-                        "ascii", errors="backslashreplace"
-                    )
-                    print(f"Sending command {msg=}")
-                    send_queue.put(msg)
+                    if enable:
+                        msg = f"{msg}B {sysport} 1"
+                    else:
+                        msg = f"unlog {sysport} {msg}B"
+                    send_command(msg, send_queue)
                     count += 1
                     sleep(0.2)
                 stop_event.set()

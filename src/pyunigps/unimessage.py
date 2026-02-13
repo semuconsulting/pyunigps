@@ -28,7 +28,6 @@ from pyunigps.unihelpers import (
     val2bytes,
 )
 from pyunigps.unitypes_core import (
-    BINARY,
     FREQNO,
     GET,
     POLL,
@@ -68,6 +67,9 @@ class UNIMessage:
 
         If 'payload' is passed as a keyword parm, this is taken to contain the complete
         payload as a sequence of bytes; any other keyword parms are ignored.
+
+        If the wno or tow arguments are `None`, wno, tow and leapsecond will default to the
+        current datetime and leapsecond offset.
 
         Otherwise, any named attributes will be assigned the value given, all others will
         be assigned a nominal value according to type.
@@ -113,7 +115,6 @@ class UNIMessage:
         self._mode = msgmode
         self._payload = b""
         self._parsebf = parsebitfield  # parsing bitfields Y/N?
-        self._unimode = BINARY
 
         if msgmode not in (GET, SET, POLL):
             raise UNIMessageError(f"Invalid msgmode {msgmode} - must be 0, 1 or 2")
@@ -424,9 +425,9 @@ class UNIMessage:
         """
 
         try:
-            if self._mode == POLL:
+            if self._mode == POLL:  # pragma: no cover
                 pdict = UNI_PAYLOADS_POLL[self.identity]
-            elif self._mode == SET:
+            elif self._mode == SET:  # pragma: no cover
                 pdict = UNI_PAYLOADS_SET[self.identity]
             else:
                 # Unknown GET message, parsed to nominal definition
@@ -615,15 +616,3 @@ class UNIMessage:
         """
 
         return self._mode
-
-    @property
-    def unimode(self) -> str:
-        """
-        UNI mode getter (B = Binary, A = ASCII).
-
-        :return: unimode
-        :rtype: str
-
-        """
-
-        return self._unimode

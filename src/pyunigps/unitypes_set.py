@@ -9,4 +9,5 @@ https://www.ardusimple.com/wp-content/uploads/2023/04/Unicore-Reference-Commands
 :author: semuadmin (Steve Smith)
 """
 
+# no SET messages currently defined in protocol (uses ASCII commands)
 UNI_PAYLOADS_SET = {}
