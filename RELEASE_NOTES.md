@@ -1,5 +1,10 @@
 # pyunigps Release Notes
 
+### RELEASE 0.1.5
+
+1. Fix OBSVM, OBSVMCMP `psr` & `adr` attribute scaling.
+1. Add additional navigation bitmask decodes.
+
 ### RELEASE 0.1.4
 
 1. Split SATELLITE `prn` definition into `glofreq` (MSB) and `prn` (LSB).

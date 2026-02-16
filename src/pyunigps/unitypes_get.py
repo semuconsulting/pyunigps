@@ -33,6 +33,49 @@ from pyunigps.unitypes_core import (
     X24,
 )
 
+EXTSOLSTAT = {
+    "groupextsolstat": (
+        X1,
+        {
+            "rtkverify": U1,
+            "psrionocorr": U3,  # see PSRIONOCORR decode
+            "reserved50": U4,
+        },
+    ),
+}
+
+GPSGLOBDS2SIGMASK = {
+    "groupgpsmask": (
+        X1,
+        {
+            "gpsl1": U1,
+            "gpsl2": U1,
+            "gpsl5": U1,
+            "bdsb3l": U1,
+            "glol1": U1,
+            "glol2": U1,
+            "bdsb1l": U1,
+            "bdsb2l": U1,
+        },
+    ),
+}
+
+GALBDS3SIGMASK = {
+    "groupgalmask": (
+        X1,
+        {
+            "gale1": U1,
+            "gale5b": U1,
+            "gale5a": U1,
+            "reserved51": U1,
+            "bdsb1l": U1,
+            "bdsb3l": U1,
+            "bdsb2a": U1,
+            "bdsb1c": U1,
+        },
+    ),
+}
+
 UNI_PAYLOADS_GET = {
     "VERSION": {
         "device": U4,
@@ -49,12 +92,12 @@ UNI_PAYLOADS_GET = {
             {
                 "glofreq": U2,
                 "prn": U2,
-                "psr": U8,
-                "adr": U8,
-                "psrstd": [U2, 100],
-                "adrstd": [U2, 10000],
+                "psr": R8,
+                "adr": R8,
+                "psrstd": U2 + "*100",
+                "adrstd": U2 + "*10000",
                 "doppfreq": R4,
-                "cno": [U2, 100],
+                "cno": U2 + "*100",
                 "reserved1": U2,
                 "locktime": R4,
                 "trstatus": (
@@ -96,14 +139,14 @@ UNI_PAYLOADS_GET = {
                         "sigtype": U5,
                         "L2Cflag": U1,
                         "reserved6": U5,
-                        "doppler": "U028",
-                        "psr": "U036",
-                        "adr": "U032",
-                        "psrstd": U4,
-                        "adrstd": U4,
+                        "doppler": "U028*256",
+                        "psr": "U036*128",
+                        "adr": "U032*256",
+                        "psrstd": U4,  # special processing see PSRSTD decode
+                        "adrstd": U4,  # special processing (n+1)/512
                         "prn": U8,
-                        "locktime": "U021",
-                        "cno": U5,
+                        "locktime": "U021*32",
+                        "cno": U5,  # special processing 20+
                         "glofreq": U6,
                         "reserved7": U16,
                     },
@@ -554,9 +597,9 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
         "vsolstatus": U4,
         "veltype": U4,
         "latency": R4,
@@ -593,9 +636,9 @@ UNI_PAYLOADS_GET = {
         "numggl1": U1,
         "numsolnmultisvs": U1,
         "reserved1": U4,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
     },
     # "BESTNAVH": {}, # same as BESTNAV, see below
     # "BESTNAVXYZH": {}, # same as BESTNAVXYX, see below
@@ -630,9 +673,9 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
         "solstatus2": U4,
         "veltype": U4,
         "latency": R4,
@@ -663,9 +706,9 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
     },
     "SPPNAV": {
         "solstatus": U4,
@@ -686,9 +729,9 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
         "solstatus2": U4,
         "veltype": U4,
         "latency": R4,
@@ -802,7 +845,7 @@ UNI_PAYLOADS_GET = {
             {
                 "prn": U1,
                 "azi": S2,
-                "elev": S1,  # TODO signed?
+                "elev": S1,
                 "groupfreq": (
                     FREQNO,  # calculated by 'look ahead' at run time
                     {"sysstatus": U1, "cno": U1, "freqstatus": U1, FREQNO: U1},
@@ -829,9 +872,9 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
         "vsolstatus": U4,
         "veltype": U4,
         "latency": R4,
@@ -905,9 +948,9 @@ UNI_PAYLOADS_GET = {
         "numobs": U1,
         "nummulti": U1,
         "reserved2": U1,
-        "extsolstat": U1,
-        "galds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
     },
     "UNIHEADING2": {
         "solstat": U4,
@@ -924,9 +967,9 @@ UNI_PAYLOADS_GET = {
         "numobs": U1,
         "nummulti": U1,
         "reserved2": U1,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
     },
     "HEADINGSTATUS": {
         "cfglength": R4,
@@ -1101,7 +1144,7 @@ UNI_PAYLOADS_GET = {
         "iodp": U1,
         "sow": U4,
         "prnmask": "U032",
-    },  # TODO check mask struct
+    },
     "PPPB2BINFO2": {
         "prn": U2,
         "iodssr": U1,
@@ -1113,7 +1156,7 @@ UNI_PAYLOADS_GET = {
                 "orbitcorr": "U012",
             },
         ),
-    },  # TODO check orbitcorr struct
+    },
     "PPPB2BINFO3": {
         "prn": U2,
         "iodssr": U1,
@@ -1125,7 +1168,7 @@ UNI_PAYLOADS_GET = {
                 "codebias": "U064",
             },
         ),
-    },  # TODO double check codebias length, struct
+    },
     "PPPB2BINFO4": {
         "prn": U2,
         "iodssr": U1,
@@ -1139,7 +1182,7 @@ UNI_PAYLOADS_GET = {
                 "clkcorr": U4,
             },
         ),
-    },  # TODO check clkcorr struct
+    },
     "PPPB2BINFO5": {
         "prn": U2,
         "iodssr": U1,
@@ -1155,21 +1198,21 @@ UNI_PAYLOADS_GET = {
                 "urai": U2,
             },
         ),
-    },  # TODO check urai struct
+    },
     "PPPB2BINFO6": {
         "prn": U2,
         "numc": U1,
         "numo": U1,
         "rawnumc": "U096",
         "rawnumo": "U080",
-    },  # TODO check raw structs
+    },
     "PPPB2BINFO7": {
         "prn": U2,
         "numc": U1,
         "numo": U1,
         "rawnumc": "U128",
         "rawnumo": "U080",
-    },  # TODO check raw structs
+    },
     "E6MASKBLOCK": {
         "toh": U4,
         "blockflag": U1,
@@ -1301,9 +1344,9 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "extsolstat": U1,
-        "galbdssigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
     },
     "BSLNXYZHD2": {
         "solstatus": U4,
@@ -1321,9 +1364,9 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "extsolstat": U1,
-        "galbds3sigmask": U1,
-        "gpsglobds2sigmask": U1,
+        **EXTSOLSTAT,
+        **GALBDS3SIGMASK,
+        **GPSGLOBDS2SIGMASK,
     },
     "DOPHD2": {
         "gdop": R4,

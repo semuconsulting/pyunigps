@@ -112,3 +112,32 @@ ROVERPOSTYPE = {
     7: "Input a fixed position",
 }
 """ Rover Position Status"""
+
+PSRSTD = {
+    0: 0.050,
+    1: 0.075,
+    2: 0.113,
+    3: 0.169,
+    4: 0.253,
+    5: 0.380,
+    6: 0.570,
+    7: 0.854,
+    8: 1.281,
+    9: 2.375,
+    10: 4.750,
+    11: 9.500,
+    12: 19.000,
+    13: 38.000,
+    14: 76.000,
+    15: 152.000,
+}
+"""OBSVMCMP Pseudorange Standard Deviation Lookup"""
+
+PSRIONOCORR = {
+    0: "Unknown",
+    1: "Klobuchareph",
+    2: "SBASionogrid",
+    3: "Multifreq",
+    4: "Psrdiff",
+}
+"""EXTSOLSTAT Pseudorange Ionospheric Correction"""
