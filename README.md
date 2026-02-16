@@ -285,9 +285,8 @@ The UNI protocol is principally defined in the modules `unitypes_*.py` as a seri
 
 ```
 1. attribute names must be unique within each message class
-2. attribute types must be one of the valid types (S1, U2, X4, etc.)
-3. if the attribute is scaled, attribute type is list of [attribute type as string (S1, U2, etc.), scaling factor as float] e.g. {"lat": [R4, 1e-7]}
-4. repeating or bitfield groups must be defined as a tuple ('numr', {dict}), where:
+2. attribute types must be one of the valid types (S1, U2, X4, etc.). A suffix of "*f" signifies a scaling factor of f is to be applied to the raw value.
+3. repeating or bitfield groups must be defined as a tuple ('numr', {dict}), where:
    'numr' is either:
      a. an integer representing a fixed number of repeats e.g. 32
      b. a string representing the name of a preceding attribute containing the number of repeats e.g. 'numsat'
