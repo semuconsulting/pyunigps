@@ -17,20 +17,14 @@ from datetime import datetime, timezone
 import pyunigps.exceptions as une
 import pyunigps.unitypes_core as unt
 from pyunigps.unihelpers import (
-    att2idx,
-    att2name,
     attsiz,
     bytes2val,
     calc_crc,
     escapeall,
-    get_bits,
-    get_parts,
     header2bytes,
     header2vals,
-    key_from_val,
     msgname2id,
     nomval,
-    str2val,
     utc2wnotow,
     val2bytes,
 )
@@ -71,6 +65,8 @@ class StaticTest(unittest.TestCase):
             (-23.12345678912345, unt.R8),
             ("test1234", unt.C8),
             ("test1234", "C016"),
+            (23.12345678912345, "R008*100"),
+            (2345, "U002*20"),
         ]
         EXPECTED_RESULTS = [
             b"\x29\x09",
@@ -79,6 +75,8 @@ class StaticTest(unittest.TestCase):
             b"\x1f\xc1\x37\xdd\x9a\x1f\x37\xc0",
             b"test1234",
             b"test1234        ",
+            b'\xe0\x8e\xd3\xfc\xb0\x10\xa2@',
+            b'4\xb7',
         ]
         for i, inp in enumerate(INPUTS):
             val, att = inp
@@ -103,6 +101,7 @@ class StaticTest(unittest.TestCase):
             (b"\xd7\xfc\xb8\x41", unt.R4),
             (b"\x1f\xc1\x37\xdd\x9a\x1f\x37\xc0", unt.R8),
             (b"test1234", unt.C8),
+            (b'\xe0\x8e\xd3\xfc\xb0\x10\xa2@', "R008*100"),
         ]
         EXPECTED_RESULTS = [
             2345,
@@ -110,6 +109,7 @@ class StaticTest(unittest.TestCase):
             23.12345678,
             -23.12345678912345,
             "test1234",
+            23.123456789123,
         ]
         for i, inp in enumerate(INPUTS):
             valb, att = inp
@@ -150,39 +150,9 @@ class StaticTest(unittest.TestCase):
         with self.assertRaisesRegex(une.UNITypeError, "Unknown attribute type Y002"):
             res = nomval("Y002")
 
-    def testgetbits(self):
-        INPUTS = [
-            (b"\x89", 192),
-            (b"\xc9", 3),
-            (b"\x89", 9),
-            (b"\xc9", 9),
-            (b"\x18\x18", 8),
-            (b"\x18\x20", 8),
-        ]
-        EXPECTED_RESULTS = [2, 1, 9, 9, 1, 0]
-        for i, (vb, mask) in enumerate(INPUTS):
-            vi = get_bits(vb, mask)
-            self.assertEqual(vi, EXPECTED_RESULTS[i])
-
     def testattsiz(self):  # test attsiz
         self.assertEqual(attsiz(CV), -1)
         self.assertEqual(attsiz("C032"), 32)
-
-    def testatt2idx(self):  # test att2idx
-        EXPECTED_RESULT = [4, 16, 101, 0, (3, 6), 0]
-        atts = ["svid_04", "gnssId_16", "cno_101", "gmsLon", "gnod_03_06", "dodgy_xx"]
-        for i, att in enumerate(atts):
-            res = att2idx(att)
-            # print(res)
-            self.assertEqual(res, EXPECTED_RESULT[i])
-
-    def testatt2name(self):  # test att2name
-        EXPECTED_RESULT = ["svid", "gnssId", "cno", "gmsLon"]
-        atts = ["svid_04", "gnssId_16", "cno_101", "gmsLon"]
-        for i, att in enumerate(atts):
-            res = att2name(att)
-            # print(res)
-            self.assertEqual(res, EXPECTED_RESULT[i])
 
     def testescapeall(self):
         EXPECTED_RESULT = "b'\\x68\\x65\\x72\\x65\\x61\\x72\\x65\\x73\\x6f\\x6d\\x65\\x63\\x68\\x61\\x72\\x73'"
@@ -190,14 +160,6 @@ class StaticTest(unittest.TestCase):
         res = escapeall(val)
         print(res)
         self.assertEqual(res, EXPECTED_RESULT)
-
-    def testkeyfromval(self):
-        res = key_from_val(UNI_MSGIDS, "GLOEPH")
-        self.assertEqual(res, 107)
-
-    def testkeyfromvalinvalid(self):
-        with self.assertRaisesRegex(KeyError, "No key found for value XXXX"):
-            res = key_from_val(UNI_MSGIDS, "XXXX")
 
     def testutc2wnotow(self):
         dat = datetime(2026, 1, 28, 9, 34, 12, 234000, tzinfo=timezone.utc)
@@ -239,25 +201,6 @@ class StaticTest(unittest.TestCase):
         )
         # print(v)
         self.assertEqual(v, (0, 17, 308, 1, 1, 2402, 34675834, 1, 0, 18, 23))
-
-    def testgetparts(self):
-        MESSAGE = b'#VERSIONA,94,GPS,FINE,2190,117325000,0,0,18,160;"UM982","R4.10Build5251","HRPT00-S10C-P","-","ffff48ffff0fffff","2021/11/26"*e195b254\r\n'
-        BADMESSAGE = b'#VERSIONA,94,GPS,FINE,2190,"HRPT00-S10C-P","-","ffff48ffff0fffff","2021/11/26"\r\n'
-        header, payload, crcb = get_parts(MESSAGE)
-        self.assertEqual(header, ["VERSIONA",'94',"GPS","FINE",'2190','117325000','0','0','18','160'])
-        self.assertEqual(payload, ['"UM982"','"R4.10Build5251"','"HRPT00-S10C-P"','"-"','"ffff48ffff0fffff"','"2021/11/26"'])
-        self.assertEqual(crcb, b'\x54\xb2\x95\xe1')
-        with self.assertRaisesRegex(une.UNIMessageError, 'Badly formed ASCII message #VERSIONA,94,GPS,FINE,2190,"HRPT00-S10C-P","-","ffff48ffff0fffff","2021/11/26"'):
-            get_parts(BADMESSAGE)
-
-    def teststr2val(self):
-        self.assertEqual(str2val('23',"U001"), 23)
-        self.assertEqual(str2val('-128',"S001"), -128)
-        self.assertEqual(str2val('34.123',"R004"), 34.123)
-        self.assertEqual(str2val('UM980 ',"C006"), "UM980 ")
-        self.assertEqual(str2val('34e2b1a6',"X004"), 2796675636)
-        with self.assertRaisesRegex(une.UNITypeError, "Unknown attribute type Y."):
-            str2val('34e2b1a6',"Y004")
 
 
 if __name__ == "__main__":

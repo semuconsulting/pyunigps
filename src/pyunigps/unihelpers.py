@@ -17,8 +17,9 @@ from typing import Any
 from pynmeagps import leapsecond
 
 import pyunigps.exceptions as une
-from pyunigps.unitypes_core import ATTTYPE, U4, UNI_MSGIDS
+from pyunigps.unitypes_core import ATTTYPE, SCALROUND, U4, UNI_MSGIDS
 
+HDRSTRUCT = "<BHHBBHLLBBH"
 # base epoch for wno and tow
 GPSEPOCH0 = datetime(1980, 1, 6, tzinfo=timezone.utc)
 # CRC table for calculation in calc_crc
@@ -282,43 +283,6 @@ CRCTABLE = [
 ]
 
 
-def att2idx(att: str) -> int | tuple[int]:
-    """
-    Get integer indices corresponding to grouped attribute.
-
-    e.g. svid_06 -> 6; gnssId_103 -> 103, gsid_03_04 -> (3,4), tow -> 0
-
-    :param str att: grouped attribute name e.g. svid_01
-    :return: indices as integer(s), or 0 if not grouped
-    :rtype: int | tuple[int]
-    """
-
-    try:
-        att = att.split("_")
-        ln = len(att)
-        if ln == 2:  # one group level
-            return int(att[1])
-        if ln > 2:  # nested group level(s)
-            return tuple(int(att[i]) for i in range(1, ln))
-        return 0  # not grouped
-    except ValueError:
-        return 0
-
-
-def att2name(att: str) -> str:
-    """
-    Get name of grouped attribute.
-
-    e.g. svid_06 -> svid; gnssId_103 -> gnssId, tow -> tow
-
-    :param str att: grouped attribute name e.g. svid_01
-    :return: name without index e.g. svid
-    :rtype: str
-    """
-
-    return att.split("_")[0]
-
-
 def attsiz(att: str) -> int:
     """
     Helper function to return attribute size in bytes.
@@ -348,28 +312,38 @@ def atttyp(att: str) -> str:
     return att[0:1]
 
 
-def bytes2val(valb: bytes, att: str) -> Any:
+def bytes2val(valb: bytes, adef: str) -> Any:
     """
     Convert bytes to value for given UNI attribute type.
 
     :param bytes valb: attribute value in byte format e.g. b'\\\\x19\\\\x00\\\\x00\\\\x00'
-    :param str att: attribute type e.g. 'U004'
+    :param str adef: attribute definition e.g. 'U004'
     :return: attribute value as int, float, str or bytes
     :rtype: Any
     :raises: UNITypeError
 
     """
 
-    if atttyp(att) == "X":  # bytes
-        val = valb
-    elif atttyp(att) == "C":  # string
-        val = valb.replace(b"\x00", b" ").decode("utf-8", errors="backslashreplace")
-    elif atttyp(att) in ("S", "U"):  # integer
-        val = int.from_bytes(valb, byteorder="little", signed=atttyp(att) == "S")
-    elif atttyp(att) == "R":  # floating point
-        val = struct.unpack("<f" if attsiz(att) == 4 else "<d", valb)[0]
+    if "*" in adef:
+        adef, scaling = adef.split("*", 1)
+        scaling = float(scaling)
     else:
-        raise une.UNITypeError(f"Unknown attribute type {att}")
+        scaling = 1
+
+    if atttyp(adef) == "X":  # bytes
+        val = valb
+    elif atttyp(adef) == "C":  # string
+        val = valb.replace(b"\x00", b" ").decode("utf-8", errors="backslashreplace")
+    elif atttyp(adef) in ("S", "U"):  # integer
+        val = int.from_bytes(valb, byteorder="little", signed=atttyp(adef) == "S")
+        if scaling != 1:
+            val = round(val / scaling, SCALROUND)
+    elif atttyp(adef) == "R":  # floating point
+        val = struct.unpack("<f" if attsiz(adef) == 4 else "<d", valb)[0]
+        if scaling != 1:
+            val = round(val / scaling, SCALROUND)
+    else:
+        raise une.UNITypeError(f"Unknown attribute type {adef}")
     return val
 
 
@@ -400,53 +374,6 @@ def escapeall(val: bytes) -> str:
     """
 
     return "b'{}'".format("".join(f"\\x{b:02x}" for b in val))
-
-
-def get_bits(bitfield: bytes, bitmask: int) -> int:
-    """
-    Get integer value of specified (masked) bit(s) in a UNI bitfield (attribute type 'X')
-
-    e.g. to get value of bits 6,7 in bitfield b'\\\\x89' (binary 0b10001001)::
-
-        get_bits(b'\\x89', 0b11000000) = get_bits(b'\\x89', 192) = 2
-
-    :param bytes bitfield: bitfield byte(s)
-    :param int bitmask: bitmask as integer (= Σ(2**n), where n is the number of the bit)
-    :return: value of masked bit(s)
-    :rtype: int
-    """
-
-    i = 0
-    val = int(bitfield.hex(), 16)
-    while bitmask & 1 == 0:
-        bitmask = bitmask >> 1
-        i += 1
-    return val >> i & bitmask
-
-
-def get_parts(message: bytes | str) -> tuple[list, list, bytes]:
-    """
-    Get header, payload and CRC of ASCII UNI message.
-
-    :param bytes | str message: entire message as bytes or string
-    :return: tuple of (hdr, payload, crc)
-    :rtype: tuple[list, list, bytes]
-    :raises: UNIMessageError (if message is badly formed)
-    """
-
-    try:
-        if isinstance(message, bytes):
-            message = message.decode("ascii", errors="backslashreplace")
-
-        content, crcstr = message.strip("#\r\n").split("*", 1)
-        # ASCII CRC is big-endian so reverse byte order
-        crcb = bytes.fromhex(crcstr)[::-1]
-        hdrt, payt = content.split(";", 1)
-        header = hdrt.split(",")
-        payload = payt.split(",")
-        return header, payload, crcb
-    except ValueError as err:
-        raise une.UNIMessageError(f"Badly formed ASCII message {message}") from err
 
 
 def msgname2id(msgname: str) -> int | NoneType:
@@ -497,7 +424,7 @@ def header2bytes(
     if wno is None or tow is None:
         wno, tow, leapsec = utc2wnotow()
     return struct.pack(
-        "<BHHBBHLLBBH",
+        HDRSTRUCT,
         cpuidle,
         msgid,
         length,
@@ -523,7 +450,7 @@ def header2vals(header: bytes) -> tuple:
       tow, version, reserved, leapsecond, delay)
     """
 
-    return struct.unpack("<BHHBBHLLBBH", header)
+    return struct.unpack(HDRSTRUCT, header)
 
 
 def isvalid_checksum(message: bytes) -> bool:
@@ -541,74 +468,27 @@ def isvalid_checksum(message: bytes) -> bool:
     return ckm == calc_crc(message[: lenm - 4])
 
 
-def key_from_val(dictionary: dict, value) -> str:
-    """
-    Helper method - get dictionary key corresponding to (unique) value.
-
-    :param dict dictionary: dictionary
-    :param object value: unique dictionary value
-    :return: dictionary key
-    :rtype: str
-    :raises: KeyError: if no key found for value
-
-    """
-
-    val = None
-    for key, val in dictionary.items():
-        if val == value:
-            return key
-    raise KeyError(f"No key found for value {value}")
-
-
-def nomval(att: str) -> Any:
+def nomval(adef: str) -> Any:
     """
     Get nominal value for given UNI attribute type.
 
-    :param str att: attribute type e.g. 'U004'
+    :param str adef: attribute definition e.g. 'U004'
     :return: attribute value as int, float, str or bytes
     :rtype: Any
     :raises: UNITypeError
 
     """
 
-    if atttyp(att) == "X":
-        val = b"\x00" * attsiz(att)
-    elif atttyp(att) == "C":
-        val = f"{' ':<{attsiz(att)}}"
-    elif atttyp(att) == "R":
+    if atttyp(adef) == "X":
+        val = b"\x00" * attsiz(adef)
+    elif atttyp(adef) == "C":
+        val = f"{' ':<{attsiz(adef)}}"
+    elif atttyp(adef) == "R":
         val = 0.0
-    elif atttyp(att) in ("S", "U"):
+    elif atttyp(adef) in ("S", "U"):
         val = 0
     else:
-        raise une.UNITypeError(f"Unknown attribute type {att}")
-    return val
-
-
-def str2val(valstr: str, adef: str) -> object:
-    """
-    Convert ASCII string to typed value
-
-    :param str valstr: attribute value as string
-    :param str adef: attribute type e.g. 'R001'
-    :return: attribute value
-    :rtype: object
-    :raises: UNITypeError
-    """
-
-    att = atttyp(adef)
-    val = valstr
-    if att == "C":  # char
-        pass
-    elif att == "X":  # hex
-        val = int.from_bytes(bytes.fromhex(val), "little")
-    elif att == "R":  # float
-        if valstr != "":
-            val = float(valstr)
-    elif att in ("S", "U"):  # signed or unsigned integer
-        if valstr != "":
-            val = int(valstr)
-    else:
-        raise une.UNITypeError(f"Unknown attribute type {att}.")
+        raise une.UNITypeError(f"Unknown attribute type {adef}")
     return val
 
 
@@ -633,33 +513,46 @@ def utc2wnotow(utc: datetime | NoneType = None) -> tuple[int, int, int]:
     return wno, tow, ls
 
 
-def val2bytes(val: Any, att: str) -> bytes:
+def val2bytes(val: Any, adef: str) -> bytes:
     """
     Convert value to bytes for given UNI attribute type.
 
     :param Any val: attribute value e.g. 25
-    :param str att: attribute type e.g. 'U004'
+    :param str adef: attribute definition e.g. 'U004'
     :return: attribute value as bytes
     :rtype: bytes
     :raises: UNITypeError
 
     """
 
+    if "*" in adef:
+        adef, scaling = adef.split("*", 1)
+        scaling = float(scaling)
+    else:
+        scaling = 1
+
     try:
-        if not isinstance(val, ATTTYPE[atttyp(att)]):
+        if not isinstance(val, ATTTYPE[atttyp(adef)]):
             raise TypeError(
-                f"Attribute type {att} value {val} must be {ATTTYPE[atttyp(att)]}, not {type(val)}"
+                f"Attribute type {adef} value {val} must be "
+                f"{ATTTYPE[atttyp(adef)]}, not {type(val)}"
             )
     except KeyError as err:
-        raise une.UNITypeError(f"Unknown attribute type {att}") from err
+        raise une.UNITypeError(f"Unknown attribute type {adef}") from err
 
     valb = val
-    if atttyp(att) == "X":  # byte
+    if atttyp(adef) == "X":  # byte
         valb = val
-    elif atttyp(att) == "C":  # string
-        valb = f"{val:<{attsiz(att)}}".encode("utf-8", errors="backslashreplace")
-    elif atttyp(att) in ("S", "U"):  # integer
-        valb = val.to_bytes(attsiz(att), byteorder="little", signed=atttyp(att) == "S")
-    elif atttyp(att) == "R":  # floating point
-        valb = struct.pack("<f" if attsiz(att) == 4 else "<d", float(val))
+    elif atttyp(adef) == "C":  # string
+        valb = f"{val:<{attsiz(adef)}}".encode("utf-8", errors="backslashreplace")
+    elif atttyp(adef) in ("S", "U"):  # integer
+        if scaling != 1:
+            val = int(val * scaling)
+        valb = val.to_bytes(
+            attsiz(adef), byteorder="little", signed=atttyp(adef) == "S"
+        )
+    elif atttyp(adef) == "R":  # floating point
+        if scaling != 1:
+            val = float(val * scaling)
+        valb = struct.pack("<f" if attsiz(adef) == 4 else "<d", val)
     return valb
