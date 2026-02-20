@@ -1,5 +1,13 @@
 # pyunigps Release Notes
 
+### RELEASE 0.2.0
+
+1. Update for Protocol Specification R1.13 Dec 2025.
+1. Fix GALUTC `da0g`, `da1g` attribute lengths.
+1. Fix GALEPH `fnavreceived`, `inavreceived` attribute lengths.
+1. Add additional VERSIONB device type decodes.
+1. Remove redundant routines.
+
 ### RELEASE 0.1.5
 
 1. Fix OBSVM, OBSVMCMP `psr` & `adr` attribute scaling.

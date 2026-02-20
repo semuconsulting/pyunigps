@@ -12,15 +12,26 @@ Created on 19 May 2025
 
 # pylint: disable=line-too-long
 
+import os
+import sys
 from io import BytesIO
 from platform import python_version
 from platform import version as osver
 from sys import argv
 from time import process_time_ns
 
+# get path to site-packages (source) folder within venv
+pypath = (
+    f"{os.path.expanduser("~")}/pygpsclient/lib/python"
+    f"{sys.version_info.major}.{sys.version_info.minor}/site-packages"
+)
+sys.path.insert(0, os.path.abspath(pypath))
+
 from pyunigps._version import __version__ as univer
 from pyunigps.unireader import UNIReader
 
+CYAN = "\033[1m\033[36m"
+NORM = "\033[0m"
 UNIMESSAGES = [
     b"\xaaD\xb5Y%\x004\x01\x00\xa0e\t\xe8[\x80\x04\x00\x00\x00\x00\x00\x12\x02\x00\x1f\x00\x00\x0014208\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00HRPT00-S10C-P\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x002310415000015-O322A3233801305\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ff3bbd949ceb95fc\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x002024/05/23\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb6\xc0\x95\x94",
     b"\xaaD\xb5Y\xfb\x03\x01\x00\x00\xa0e\t\xe8[\x80\x04\x00\x00\x00\x00\x00\x12\x03\x00\x00\x94#\x96'",
@@ -113,11 +124,12 @@ def benchmark(**kwargs) -> float:
     txnt = txnc * cyc
 
     print(
-        f"\nOperating system: {osver()}",
-        f"\nPython version: {python_version()}",
-        f"\npyunigps version: {univer}",
-        f"\nTest cycles: {cyc:,}",
-        f"\nTxn per cycle: {txnc:,}",
+        f"\nAbsolute path: {CYAN}{pypath}{NORM}",
+        f"\nOperating system: {CYAN}{osver()}{NORM}",
+        f"\nPython version: {CYAN}{python_version()}{NORM}",
+        f"\npyunigps version: {CYAN}{univer}{NORM}",
+        f"\nTest cycles: {CYAN}{cyc:,}{NORM}",
+        f"\nTxn per cycle: {CYAN}{txnc:,}{NORM}",
     )
 
     start = process_time_ns()
@@ -136,7 +148,8 @@ def benchmark(**kwargs) -> float:
     kbs = round(msglen * 1e9 / duration / 2**10, 2)
 
     print(
-        f"\n{txnt:,} messages processed in {duration/1e9:,.3f} seconds = {txs:,.2f} txns/second, {kbs:,.2f} kB/second.\n"
+        f"\n{txnt:,} messages processed in {duration/1e9:,.3f} seconds = "
+        f"{CYAN}{txs:,.2f}{NORM} txns/second, {CYAN}{kbs:,.2f}{NORM} kB/second ({CYAN}{kbs*8000:,.0f}{NORM} baud).\n"
     )
 
     return txs, kbs

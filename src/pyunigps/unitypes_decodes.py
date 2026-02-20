@@ -5,8 +5,8 @@ UNI Protocol decodes and enumerations.
 
 Created on 26 Jan 2026
 
-Information sourced from public domain Unicore UM980 Interface Specifications © 2023, Unicore
-https://www.ardusimple.com/wp-content/uploads/2023/04/Unicore-Reference-Commands-Manual-For-N4-High-Precision-Products_V2_EN_R1.4-1.pdf
+Information sourced from public domain Unicore Reference Commands R1.13 © Dec 2025 Unicore
+https://en.unicore.com/uploads/file/Unicore%20Reference%20Commands%20Manual%20For%20N4%20High%20Precision%20Products_V2_EN_R1.13.pdf
 
 :author: semuadmin (Steve Smith)
 """
@@ -34,7 +34,19 @@ DEVICE = {
     23: "CLAP-C",
     24: "UM960L",
     26: "UM981",
+    31: "UM981S",
+    24: "UM960L",
+    26: "UM981",
+    40: "UMD982",
+    41: "UMD981",
+    42: "UMD981S",
+    43: "UM981C",
     52: "UB9A0",
+    53: "UBD9A0",
+    62: "UMD960",
+    63: "UMD980",
+    64: "UM980C",
+    65: "UM982C",
 }
 """Hardware Device Code"""
 
@@ -141,3 +153,17 @@ PSRIONOCORR = {
     4: "Psrdiff",
 }
 """EXTSOLSTAT Pseudorange Ionospheric Correction"""
+
+BD3EPH_FREQTYPE = {
+    0: "B1C",
+    1: "B2a",
+    2: "B2b",
+}
+"""BD3EPH Frequency Type"""
+
+GLOEPH_SATTYPE = {
+    0: "GLO_SAT",
+    1: "GLO_SAT_M",
+    2: "GLO_SAT_K",
+}
+"""GLOEPH Satellite Type"""

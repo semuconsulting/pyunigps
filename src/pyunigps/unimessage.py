@@ -194,13 +194,12 @@ class UNIMessage:
 
         self._index.pop()  # remove this (nested) group index
 
-    def _set_attribute_single(self, anam: str, adef: str | list, **kwargs):
+    def _set_attribute_single(self, anam: str, adef: str, **kwargs):
         """
         Set individual attribute value, applying scaling where appropriate.
 
         :param str anam: attribute keyword
-        :param str | list adef: attribute definition string e.g. 'U002'
-           or, if scaled, list of [attribute type string, scaling factor float]
+        :param str adef: attribute definition string e.g. 'U002', 'R004*100'
         :param int offset: payload offset in bytes
         :param list index: repeating group index array
         :param kwargs: optional payload key/value pairs
@@ -216,48 +215,29 @@ class UNIMessage:
             if i > 0:
                 anami += f"_{i:02d}"
 
-        # determine attribute size (bytes) - some attributes have
-        # variable length, depending on
-        # - multiple of value of preceding attribute
-        # - payload length - offset
         asiz = attsiz(adef)
-
-        # if attribute is scaled
-        if "*" in adef:
-            adef, scaling = adef.split("*", 1)
-            scaling = float(scaling)
-        else:
-            scaling = 1
 
         # if payload keyword has been provided,
         # use the appropriate offset of the payload
         if "payload" in kwargs:
             valb = self._payload[self._offset : self._offset + asiz]
-            if scaling == 1:
-                val = bytes2val(valb, adef)
-            else:
-                val = round(bytes2val(valb, adef) / scaling, SCALROUND)
+            val = bytes2val(valb, adef)
         else:
             # if individual keyword has been provided,
             # set to provided value, else set to
             # nominal value
             val = kwargs.get(anami, nomval(adef))
-            if scaling == 1:
-                valb = val2bytes(val, adef)
-            else:
-                valb = val2bytes(int(val * scaling), adef)
+            valb = val2bytes(val, adef)
             self._payload += valb
 
         setattr(self, anami, val)
         self._offset += asiz
 
-    def _set_attribute_bitfield(self, atyp: str, **kwargs):
+    def _set_attribute_bitfield(self, adef: tuple[str, dict], **kwargs):
         """
         Parse bitfield attribute (type 'X').
 
-        :param str atyp: attribute type e.g. 'X002'
-        :param int offset: payload offset in bytes
-        :param list index: repeating group index array
+        :param tuple[str, dict] adef: attribute definition and dictionary
         :param kwargs: optional payload key/value pairs
         :return: (offset, index[])
         :rtype: tuple
@@ -265,7 +245,7 @@ class UNIMessage:
         """
         # pylint: disable=no-member
 
-        btyp, bdict = atyp  # type of bitfield, bitfield dictionary
+        btyp, bdict = adef  # type of bitfield, bitfield dictionary
         bsiz = attsiz(btyp)  # size of bitfield in bytes
         bfoffset = 0
 
@@ -294,61 +274,61 @@ class UNIMessage:
         self,
         bitfield: int,
         bfoffset: int,
-        key: str,
-        keyt: str,
+        anam: str,
+        adef: str,
         index: list,
         **kwargs,
-    ) -> tuple:
+    ) -> tuple[int, int]:
         """
         Set individual bit flag from bitfield.
 
         :param int bitfield: bitfield
         :param int bfoffset: bitfield offset in bits
-        :param str key: attribute key name
-        :param str keyt: key type e.g. 'U001'
+        :param str anam: attribute name
+        :param str adef: attribute definition e.g. 'U001'
         :param list index: repeating group index array
         :param kwargs: optional payload key/value pairs
         :return: (bitfield, bfoffset)
-        :rtype: tuple
+        :rtype: tuple[int,int]
 
         """
         # pylint: disable=no-member
 
         # if attribute is part of a (nested) repeating group, suffix name with index
-        keyr = key
+        anami = anam
         for i in index:  # one index for each nested level
             if i > 0:
-                keyr += f"_{i:02d}"
+                anami += f"_{i:02d}"
 
         # if attribute is scaled
-        if "*" in keyt:
-            keyt, scaling = keyt.split("*", 1)
+        if "*" in adef:
+            adef, scaling = adef.split("*", 1)
             scaling = float(scaling)
         else:
             scaling = 1
 
-        atts = attsiz(keyt)  # determine flag size in bits
+        asiz = attsiz(adef)  # determine flag size in bits
 
         if "payload" in kwargs:
-            val = (bitfield >> bfoffset) & ((1 << atts) - 1)
-            if self.identity in ("OBSVMCMP", "OBSVHCMP") and key == "psrstd":
+            val = (bitfield >> bfoffset) & ((1 << asiz) - 1)
+            if self.identity in ("OBSVMCMP", "OBSVHCMP") and anam == "psrstd":
                 val = PSRSTD[val]
-            elif self.identity in ("OBSVMCMP", "OBSVHCMP") and key == "adrstd":
+            elif self.identity in ("OBSVMCMP", "OBSVHCMP") and anam == "adrstd":
                 val = round((val + 1) / 512, SCALROUND)
-            elif self.identity in ("OBSVMCMP", "OBSVHCMP") and key == "cno":
+            elif self.identity in ("OBSVMCMP", "OBSVHCMP") and anam == "cno":
                 val += 20
             elif scaling != 1:
                 val = round(val / scaling, SCALROUND)
         else:
             if scaling == 1:
-                val = kwargs.get(keyr, 0)
+                val = kwargs.get(anami, 0)
             else:
-                val = int(kwargs.get(keyr, 0) * scaling)
+                val = int(kwargs.get(anami, 0) * scaling)
             bitfield = bitfield | (val << bfoffset)
 
-        if key[0:8] != "reserved":  # don't bother to set reserved bits
-            setattr(self, keyr, val)
-        return (bitfield, bfoffset + atts)
+        if anam[0:8] != "reserved":  # don't bother to set reserved bits
+            setattr(self, anami, val)
+        return (bitfield, bfoffset + asiz)
 
     def _do_len_checksum(self):
         """

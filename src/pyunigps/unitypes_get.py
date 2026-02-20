@@ -3,8 +3,8 @@ UNI Protocol output definitions.
 
 Created on 26 Jan 2026
 
-Information sourced from public domain Unicore UM980 Interface Specifications © 2023, Unicore
-https://www.ardusimple.com/wp-content/uploads/2023/04/Unicore-Reference-Commands-Manual-For-N4-High-Precision-Products_V2_EN_R1.4-1.pdf
+Information sourced from public domain Unicore Reference Commands R1.13 © Dec 2025 Unicore
+https://en.unicore.com/uploads/file/Unicore%20Reference%20Commands%20Manual%20For%20N4%20High%20Precision%20Products_V2_EN_R1.13.pdf
 
 :author: semuadmin (Steve Smith)
 """
@@ -20,6 +20,7 @@ from pyunigps.unitypes_core import (
     S1,
     S2,
     S4,
+    S8,
     U1,
     U2,
     U3,
@@ -218,8 +219,8 @@ UNI_PAYLOADS_GET = {
         "utcwn": U4,
         "tot": U4,
         "clockbias": R8,
-        "clockrate": R8,
         "clockdrift": R8,
+        "clockdriftrate": R8,
         "wnlsf": U4,
         "daynum": U4,
         "deltatls": S4,
@@ -248,8 +249,8 @@ UNI_PAYLOADS_GET = {
         "ulwnlsf": U4,
         "daynum": U4,
         "deltatlsf": S4,
-        "da0g": S4,
-        "da1g": U4,
+        "da0g": S8,
+        "da1g": U8,
         "utt0g": U4,
         "ulwn0g": U4,
     },
@@ -333,7 +334,7 @@ UNI_PAYLOADS_GET = {
         "sisaioc2": U1,
         "reserved1": S4,
         "reserved2": S4,
-        "freqtype": U4,
+        "freqtype": U4,  # see BD3EPH_FREQTYPE decode
     },
     "BDSEPH": {
         "prn": U4,
@@ -373,7 +374,7 @@ UNI_PAYLOADS_GET = {
     "GLOEPH": {
         "sloto": U2,
         "freqo": U2,
-        "sattype": U1,
+        "sattype": U1,  # see GLOEPH_SATTYPE decode
         "reserved1": U1,
         "eweek": U2,
         "etime": U4,
@@ -403,8 +404,8 @@ UNI_PAYLOADS_GET = {
     },
     "GALEPH": {
         "satid": U4,
-        "fnavreceived": U1,
-        "inavreceived": U1,
+        "fnavreceived": U4,
+        "inavreceived": U4,
         "e1bhealth": U1,
         "e5ahealth": U1,
         "e5bhealth": U1,
@@ -484,7 +485,7 @@ UNI_PAYLOADS_GET = {
         "hour": U1,
         "minute": U1,
         "second": U1,
-        "postype": U1,
+        "postype": U1,  # see POSTYPE decode
         "headingstat": U1,
         "numgpssta": U1,
         "numbdssta": U1,
@@ -579,8 +580,8 @@ UNI_PAYLOADS_GET = {
     },
     # "UNILOGLIST": {}, # ascii only
     "BESTNAV": {
-        "psolstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "lat": R8,
         "lon": R8,
         "hmsl": R8,
@@ -611,16 +612,16 @@ UNI_PAYLOADS_GET = {
         "horspdstd": R4,
     },
     "BESTNAVXYZ": {
-        "psolstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "px": R8,
         "py": R8,
         "pz": R8,
         "pxstd": R4,
         "pystd": R4,
         "pzstd": R4,
-        "vsolstatus": U4,
-        "veltype": U4,
+        "vsolstatus": U4,  # see SOLSTATUS decode
+        "veltype": U4,  # see POSTYPE decode
         "velx": R8,
         "vely": R8,
         "velz": R8,
@@ -655,8 +656,8 @@ UNI_PAYLOADS_GET = {
         ),
     },
     "ADRNAV": {
-        "solstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "lat": R8,
         "lon": R8,
         "hmsl": R8,
@@ -676,8 +677,8 @@ UNI_PAYLOADS_GET = {
         **EXTSOLSTAT,
         **GALBDS3SIGMASK,
         **GPSGLOBDS2SIGMASK,
-        "solstatus2": U4,
-        "veltype": U4,
+        "solstatus2": U4,  # see SOLSTATUS decode
+        "veltype": U4,  # see POSTYPE decode
         "latency": R4,
         "agediff": R4,
         "horspd": R8,
@@ -688,8 +689,8 @@ UNI_PAYLOADS_GET = {
     },
     # "ADRNAVH": {}, # same as ADRNAV, see below
     "PPPNAV": {
-        "solstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "lat": R8,
         "lon": R8,
         "hmsl": R8,
@@ -711,8 +712,8 @@ UNI_PAYLOADS_GET = {
         **GPSGLOBDS2SIGMASK,
     },
     "SPPNAV": {
-        "solstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "lat": R8,
         "lon": R8,
         "hmsl": R8,
@@ -732,8 +733,8 @@ UNI_PAYLOADS_GET = {
         **EXTSOLSTAT,
         **GALBDS3SIGMASK,
         **GPSGLOBDS2SIGMASK,
-        "solstatus2": U4,
-        "veltype": U4,
+        "solstatus2": U4,  # see SOLSTATUS decode
+        "veltype": U4,  # see POSTYPE decode
         "latency": R4,
         "agediff": R4,
         "horspd": R8,
@@ -763,65 +764,11 @@ UNI_PAYLOADS_GET = {
         ),
     },
     # "STADOPH": {}, # same as STADOP, see below
-    "ADRDOP": {
-        "reserved1": U4,
-        "gdop": R4,
-        "pdop": R4,
-        "tdop": R4,
-        "vdop": R4,
-        "hdop": R4,
-        "ndop": R4,
-        "edop": R4,
-        "cutoff": R4,
-        "reserved2": R4,
-        "numprn": U2,
-        "groupprn": (
-            "numprn",
-            {
-                "prn": U2,
-            },
-        ),
-    },
-    # "ADRDOPH": {}, # same as ADRDOP, see below
-    "PPPDOP": {
-        "reserved1": U4,
-        "gdop": R4,
-        "pdop": R4,
-        "tdop": R4,
-        "vdop": R4,
-        "hdop": R4,
-        "ndop": R4,
-        "edop": R4,
-        "cutoff": R4,
-        "reserved2": R4,
-        "numprn": U2,
-        "groupprn": (
-            "numprn",
-            {
-                "prn": U2,
-            },
-        ),
-    },
-    "SPPDOP": {
-        "reserved1": U4,
-        "gdop": R4,
-        "pdop": R4,
-        "tdop": R4,
-        "vdop": R4,
-        "hdop": R4,
-        "ndop": R4,
-        "edop": R4,
-        "cutoff": R4,
-        "reserved2": R4,
-        "numprn": U2,
-        "groupprn": (
-            "numprn",
-            {
-                "prn": U2,
-            },
-        ),
-    },
-    # "SPPDOPH": {}, # same as SPPDOP, see below
+    # "ADRDOP": {}, # same as STADOP, see below
+    # "ADRDOPH": {}, # same as STADOP, see below
+    # "PPPDOP": {}, # same as STADOP, see below
+    # "SPPDOP": {}, # same as STADOP, see below
+    # "SPPDOPH": {}, # same as STADOP, see below
     "SATSINFO": {
         "numsat": U1,
         "version": U1,
@@ -854,8 +801,8 @@ UNI_PAYLOADS_GET = {
         ),
     },
     "BASEPOS": {
-        "psolstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "lat": R8,
         "lon": R8,
         "hmsl": R8,
@@ -875,8 +822,8 @@ UNI_PAYLOADS_GET = {
         **EXTSOLSTAT,
         **GALBDS3SIGMASK,
         **GPSGLOBDS2SIGMASK,
-        "vsolstatus": U4,
-        "veltype": U4,
+        "vsolstatus": U4,  # see SOLSTATUS decode
+        "veltype": U4,  # see POSTYPE decode
         "latency": R4,
         "agediff": R4,
         "horspd": R8,
@@ -886,7 +833,7 @@ UNI_PAYLOADS_GET = {
         "horspdstd": R4,
     },
     "SATELLITE": {
-        "gnss": U4,
+        "gnss": U4,  # see GNSS decode
         "satvis": U4,
         "compalm": U4,
         "numsat": U4,
@@ -908,7 +855,7 @@ UNI_PAYLOADS_GET = {
         "groupsat": (
             "numsat",
             {
-                "gnss": U4,
+                "gnss": U4,  # see GNSS decode
                 "prn": U4,
                 "satcoordx": R4,
                 "satcoordy": R4,
@@ -934,8 +881,8 @@ UNI_PAYLOADS_GET = {
         "utcstatus": U4,
     },
     "UNIHEADING": {
-        "solstat": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "length": R4,
         "heading": R4,
         "pitch": R4,
@@ -953,8 +900,8 @@ UNI_PAYLOADS_GET = {
         **GPSGLOBDS2SIGMASK,
     },
     "UNIHEADING2": {
-        "solstat": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "length": R4,
         "heading": R4,
         "pitch": R4,
@@ -993,8 +940,8 @@ UNI_PAYLOADS_GET = {
         "galsource2": U4,
         "qzsssource": U4,
         "reserved4": U4,
-        "postype": U4,
-        "calcstatus": U4,
+        "postype": U4,  # see POSTYPE decode
+        "calcstatus": U4,  # see CALCSTATUS decode
         "iondetected": U1,
         "dualrtkflag": U1,
         "adrnumber": U1,
@@ -1031,14 +978,14 @@ UNI_PAYLOADS_GET = {
         "reserved5": U4,
     },
     "JAMSTATUS": {
-        "postype": U4,
+        "postype": U4,  # see POSTYPE decode
         "cwratio": U1,
         "cwflag": U1,
         "reserved1": U1,
         "reserved2": U1,
     },
     "FREQJAMSTATUS": {
-        "postype": U4,
+        "postype": U4,  # see POSTYPE decode
         "l1cwratio": U1,
         "l1cwflag": U1,
         "l2cwratio": U1,
@@ -1105,8 +1052,8 @@ UNI_PAYLOADS_GET = {
     },  # TODO double check this is groupdata within groupmsg or not?
     # "INFOPART2": {}, # same as INFOPART, see below
     "MSPOS": {
-        "mainpsoltatus": U4,
-        "mainpostype": U4,
+        "mainpsoltatus": U4,  # see SOLSTATUS decode
+        "mainpostype": U4,  # see POSTYPE decode
         "mainlat": R8,
         "mainlon": R8,
         "mainhmsl": R8,
@@ -1116,8 +1063,8 @@ UNI_PAYLOADS_GET = {
         "mainobs": U1,
         "mainsatuse": U1,
         "reserved1": S2,
-        "secondarypsolstatus": U4,
-        "secondarypostype": U4,
+        "secondarypsolstatus": U4,  # see SOLSTATUS decode
+        "secondarypostype": U4,  # see POSTYPE decode
         "secondarylat": R8,
         "secondarylon": R8,
         "secondaryhmsl": R8,
@@ -1329,8 +1276,8 @@ UNI_PAYLOADS_GET = {
         ),
     },
     "BSLNENUHD2": {
-        "solstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "east": R8,
         "north": R8,
         "up": R8,
@@ -1349,8 +1296,8 @@ UNI_PAYLOADS_GET = {
         **GPSGLOBDS2SIGMASK,
     },
     "BSLNXYZHD2": {
-        "solstatus": U4,
-        "postype": U4,
+        "solstatus": U4,  # see SOLSTATUS decode
+        "postype": U4,  # see POSTYPE decode
         "dx": R8,
         "dy": R8,
         "dz": R8,
@@ -1403,6 +1350,9 @@ UNI_PAYLOADS_GET["BESTNAVXYZH"] = UNI_PAYLOADS_GET["BESTNAVXYZ"]
 UNI_PAYLOADS_GET["ADRNAVH"] = UNI_PAYLOADS_GET["ADRNAV"]
 UNI_PAYLOADS_GET["SPPNAVH"] = UNI_PAYLOADS_GET["SPPNAV"]
 UNI_PAYLOADS_GET["STADOPH"] = UNI_PAYLOADS_GET["STADOP"]
-UNI_PAYLOADS_GET["ADRDOPH"] = UNI_PAYLOADS_GET["ADRDOP"]
-UNI_PAYLOADS_GET["SPPDOPH"] = UNI_PAYLOADS_GET["SPPDOP"]
+UNI_PAYLOADS_GET["ADRDOP"] = UNI_PAYLOADS_GET["STADOP"]
+UNI_PAYLOADS_GET["ADRDOPH"] = UNI_PAYLOADS_GET["STADOP"]
+UNI_PAYLOADS_GET["PPPDOP"] = UNI_PAYLOADS_GET["STADOP"]
+UNI_PAYLOADS_GET["SPPDOP"] = UNI_PAYLOADS_GET["STADOP"]
+UNI_PAYLOADS_GET["SPPDOPH"] = UNI_PAYLOADS_GET["STADOP"]
 UNI_PAYLOADS_GET["INFOPART2"] = UNI_PAYLOADS_GET["INFOPART1"]

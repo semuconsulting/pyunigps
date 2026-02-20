@@ -25,3 +25,4 @@ src/pyunigps.egg*
 pylint_report.txt
 venv
 output.*
+.VSCodeCounter
