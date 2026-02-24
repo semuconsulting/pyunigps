@@ -173,40 +173,43 @@ The `parse()` method accepts the following optional keyword arguments:
 * `parsebitfield`: 1 = parse bitfields ('X' type properties) as individual bit flags, where defined (default), 0 = leave bitfields as byte sequences
 * `msgmode`: `GET` (0) (default), `SET` (1), `POLL` (2)
 
-Example A - parsing VERSION output message:
+Example A - parsing BESTNAV output message:
 ```python
 from pyunigps import GET, VALCKSUM, UNIReader
 
 msg = UNIReader.parse(
-    b'\xaaD\xb5\x00\x11\x004\x01\x00\x00f\t\x8f\xf4\x0e\x02\x00\x00\x00\x00\x00\x00\x00\x00M982R4.10Build5251                   HRPT00-S10C-P                                                                                                                    -                                                                 ffff48ffff0fffff                 2021/11/26                                 #\x87\x83\xb9'
-        ,
+    b"\xaaD\xb5YF\x08x\x00\x00\xa0e\t\xe8\...\x98\x15\xa5\xf1",
     validate=VALCKSUM,
     parsebitfield=1,
 )
 print(msg)
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=0, delay=0, device=18, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
+"<UNI(BESTNAV, cpuidle=89, timeref=0, timestatus=160, wno=2405, tow=75521000, version=0, leapsecond=18, delay=13, solstatus=0, postype=16, lat=43.450634678833644, lon=-1.1303087675041795, hmsl=36.32093767914921, undulation=51.67765808105469, datumid=61, latstd=2.6222991943359375, lonstd=1.9253981113433838, hmslstd=2.7721946239471436, stationid=0, diffage=0.0, solage=0.0, numsvs=25, numsolnsvs=21, reserved1=21, reserved2=0, reserved3=1, rtkverify=0, psrionocorr=1, gale1=1, gale5b=0, gale5a=0, bdsb1l=1, bdsb3l=0, bdsb2a=0, bdsb1c=0, gpsl1=1, gpsl2=0, gpsl5=0, glol1=1, glol2=0, bdsb2l=0, vsolstatus=0, veltype=8, latency=0.0, age=0.0, horspd=0.06034742542911377, trkgnd=192.53216796929004, vertspd=-0.001533079795667136, verspdstd=0.14649531245231628, horspdstd=0.11643162369728088)>"      
 ```
 
-The `UNIMessage` object exposes different public attributes depending on its message type or 'identity'. Attributes which are enumerations may have corresponding decodes in `pyunigps.unitypes_decodes` e.g. the `VERSION` message has the following attributes:
+The `UNIMessage` object exposes different public attributes depending on its message type or 'identity'. Helper methods are available to convert position coordinates into different formats. Attributes which are enumerations may have corresponding decodes in `pyunigps.unitypes_decodes` e.g. the `BESTNAV` message has the following attributes:
 
 ```python
-from pyunigps import DEVICE
-print(msg)
+from pyunigps import POSTYPE, PSRIONOCORR, SOLSTATUS, latlon2dms, llh2iso6709, wnotow2utc
 print(msg.identity)
-print(msg.device)
-print(DEVICE[msg.device])
-print(swversion)
-print(comptime)
+print(wnotow2utc(msg.wno, msg.tow, msg.leapsecond))
+print(msg.lat, msg.lon, msg.hmsl)
+print(latlon2dms(msg.lat, msg.lon))
+print(llh2iso6709(msg.lat, msg.lon, msg.hmsl))
+print(msg.solstatus, SOLSTATUS[msg.solstatus])
+print(msg.postype, POSTYPE[msg.postype])
+print(msg.psrionocorr, PSRIONOCORR[msg.psrionocorr])
 ```
 ```
-<UNI(VERSION, cpuidle=0, timeref=0, timestatus=0, wno=2406, tow=34534543, version=0, leapsecond=18, delay=0, device=18, swversion=R4.10Build5251, authtype=HRPT00-S10C-P, psn=-, efuseid=ffff48ffff0fffff, comptime=2021/11/26)>
-VERSION
-18
-UM980
-R4.10Build5251
-2021/11/26
+BESTNAV
+2026-02-08 20:58:23+00:00
+43.450634678833644, -1.1303087675041795, 36.32093767914921
+('43°27′2.28484″N', '1°7′49.11156″W')
++43.450634678833644-1.1303087675041794+36.32093767914921CRSWGS_84/
+0 SOL_COMPUTED
+16 SINGLE
+1 Klobuchareph
 ```
 
 The `payload` attribute always contains the raw payload as bytes. Attributes within repeating groups are parsed with a two-digit suffix (prn_01, prn_02, etc.).

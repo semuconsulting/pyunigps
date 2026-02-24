@@ -2,6 +2,8 @@
 Collection of UNI helper methods which can be used
 outside the UNIMessage or UNIReader classes.
 
+pyunigps also inherits pynmeagps helper methods.
+
 Created on 6 Oct 2025
 
 :author: semuadmin (Steve Smith)
@@ -14,7 +16,7 @@ from datetime import datetime, timezone
 from types import NoneType
 from typing import Any
 
-from pynmeagps import leapsecond
+from pynmeagps import utc2wnotow
 
 import pyunigps.exceptions as une
 from pyunigps.unitypes_core import ATTTYPE, SCALROUND, U4, UNI_MSGIDS
@@ -490,27 +492,6 @@ def nomval(adef: str) -> Any:
     else:
         raise une.UNITypeError(f"Unknown attribute type {adef}")
     return val
-
-
-def utc2wnotow(utc: datetime | NoneType = None) -> tuple[int, int, int]:
-    """
-    Get GPS Week number (wno), Time of Week (tow) in milliseconds
-    and leapsecond offset for given utc datetime.
-
-    GPS Epoch 0 = 6th Jan 1980
-
-    :param datetime | NoneType utc: utc datetime (defaults to now if None)
-    :return: wno, tow, leapsecond
-    :rtype: tuple[int,int, int]
-    """
-
-    if utc is None:
-        utc = datetime.now(tz=timezone.utc)
-    ls = leapsecond(utc.replace(tzinfo=None))  # method is not tz aware
-    ts = ((utc - GPSEPOCH0).total_seconds() + ls) * 1000
-    wno = int((utc - GPSEPOCH0).days / 7)
-    tow = int(ts - wno * 604800000)
-    return wno, tow, ls
 
 
 def val2bytes(val: Any, adef: str) -> bytes:

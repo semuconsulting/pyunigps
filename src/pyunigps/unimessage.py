@@ -14,6 +14,8 @@ Created on 26 Sep 2020
 
 from types import NoneType
 
+from pynmeagps import utc2wnotow
+
 from pyunigps.exceptions import UNIMessageError
 from pyunigps.unihelpers import (
     attsiz,
@@ -23,7 +25,6 @@ from pyunigps.unihelpers import (
     header2bytes,
     msgname2id,
     nomval,
-    utc2wnotow,
     val2bytes,
 )
 from pyunigps.unitypes_core import (
