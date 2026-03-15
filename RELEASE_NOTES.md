@@ -1,7 +1,8 @@
 # pyunigps Release Notes
 
-### RELEASE 0.2.1
+### RELEASE 1.0.0
 
+1. Update status to Stable.
 1. Remove duplicate keys from DEVICE decode.
 1. Inherit helper methods from pynmeagps.
 
