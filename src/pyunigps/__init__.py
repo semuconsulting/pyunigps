@@ -6,7 +6,24 @@ Created on 6 Oct 2025
 :license: BSD 3-Clause
 """
 
-from pynmeagps import SocketWrapper
+from pynmeagps import (
+    SocketWrapper,
+    area,
+    bearing,
+    deg2dmm,
+    deg2dms,
+    dms2deg,
+    ecef2llh,
+    haversine,
+    latlon2dmm,
+    latlon2dms,
+    leapsecond,
+    llh2ecef,
+    llh2iso6709,
+    planar,
+    utc2wnotow,
+    wnotow2utc,
+)
 
 from pyunigps._version import __version__
 from pyunigps.exceptions import (

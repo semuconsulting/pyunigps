@@ -1,5 +1,11 @@
 # pyunigps Release Notes
 
+### RELEASE 1.0.0
+
+1. Update status to Stable.
+1. Remove duplicate keys from DEVICE decode.
+1. Inherit helper methods from pynmeagps.
+
 ### RELEASE 0.2.0
 
 1. Update for Protocol Specification R1.13 Dec 2025.

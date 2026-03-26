@@ -12,7 +12,6 @@ Created on 26 Jan 2026
 
 import os
 import unittest
-from datetime import datetime, timezone
 
 import pyunigps.exceptions as une
 import pyunigps.unitypes_core as unt
@@ -25,7 +24,6 @@ from pyunigps.unihelpers import (
     header2vals,
     msgname2id,
     nomval,
-    utc2wnotow,
     val2bytes,
 )
 from pyunigps.unitypes_core import CV, UNI_MSGIDS
@@ -160,17 +158,6 @@ class StaticTest(unittest.TestCase):
         res = escapeall(val)
         print(res)
         self.assertEqual(res, EXPECTED_RESULT)
-
-    def testutc2wnotow(self):
-        dat = datetime(2026, 1, 28, 9, 34, 12, 234000, tzinfo=timezone.utc)
-        wno, tow, ls = utc2wnotow(dat)
-        # print(wno, tow, ls)
-        self.assertEqual((wno, tow), (2403, 293670234))
-        wno, tow, ls = utc2wnotow()
-        # print(wno, tow, ls)
-        self.assertIsInstance(wno, int)
-        self.assertIsInstance(tow, int)
-        self.assertIsInstance(ls, int)
 
     def testheader2bytes(self):
         t = header2bytes(msgid=17, length=308, cpuidle=0, wno=2406, tow=34675834)
