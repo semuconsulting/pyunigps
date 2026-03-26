@@ -28,7 +28,7 @@ This is an independent project and we have no affiliation whatsoever with Unicor
 ![Contributors](https://img.shields.io/github/contributors/semuconsulting/pyunigps.svg)
 ![Open Issues](https://img.shields.io/github/issues-raw/semuconsulting/pyunigps)
 
-This Beta implements a comprehensive set of messages for Unicore "NebulasIV" High Precision GPS/GNSS devices, including the UM96n and UM98n series, but is readily [extensible](#extensibility). Refer to [UNI_MSGIDS in unitypes_core.py](https://github.com/semuconsulting/pyunigps/blob/main/src/pyunigps/unitypes_core.py#L86) for the complete list of message definitions currently defined. UNI protocol information sourced from public domain Unicore Reference Commands R1.13 © Dec 2025 Unicore
+`pyunigps` implements a comprehensive set of messages for Unicore "NebulasIV" High Precision GPS/GNSS devices, including the UM96n and UM98n series, but is readily [extensible](#extensibility). Refer to [UNI_MSGIDS in unitypes_core.py](https://github.com/semuconsulting/pyunigps/blob/main/src/pyunigps/unitypes_core.py#L86) for the complete list of message definitions currently defined. UNI protocol information sourced from public domain Unicore Reference Commands R1.13 © Dec 2025 Unicore
 https://en.unicore.com/uploads/file/Unicore%20Reference%20Commands%20Manual%20For%20N4%20High%20Precision%20Products_V2_EN_R1.13.pdf
 
 **FYI:**
