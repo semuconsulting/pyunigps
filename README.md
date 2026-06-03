@@ -22,7 +22,7 @@ This is an independent project and we have no affiliation whatsoever with Unicor
 ![Status](https://img.shields.io/pypi/status/pyunigps)
 ![Release](https://img.shields.io/github/v/release/semuconsulting/pyunigps?include_prereleases)
 ![Build](https://img.shields.io/github/actions/workflow/status/semuconsulting/pyunigps/main.yml?branch=main)
-![Codecov](https://img.shields.io/codecov/c/github/semuconsulting/pyunigps)
+![Coverage](https://github.com/semuconsulting/pyunigps/blob/main/images/coverage.svg?raw=true)
 ![Release Date](https://img.shields.io/github/release-date-pre/semuconsulting/pyunigps)
 ![Last Commit](https://img.shields.io/github/last-commit/semuconsulting/pyunigps)
 ![Contributors](https://img.shields.io/github/contributors/semuconsulting/pyunigps.svg)
