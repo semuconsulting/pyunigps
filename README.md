@@ -38,7 +38,7 @@ Unicore "NebulasIV" GNSS receivers are configured using TTY commands (ASCII text
 
 Sphinx API Documentation in HTML format is available at [https://www.semuconsulting.com/pyunigps/](https://www.semuconsulting.com/pyunigps/).
 
-Contributions welcome - please refer to [CONTRIBUTING.MD](https://github.com/semuconsulting/pyunigps/blob/main/CONTRIBUTING.md).
+Contributions _**from human beings**_ welcome - please refer to [CONTRIBUTING.MD](https://github.com/semuconsulting/pyunigps/blob/main/CONTRIBUTING.md).
 
 [Bug reports](https://github.com/semuconsulting/pyunigps/blob/main/.github/ISSUE_TEMPLATE/bug_report.md) and [Feature requests](https://github.com/semuconsulting/pyunigps/blob/main/.github/ISSUE_TEMPLATE/feature_request.md) - please use the templates provided. For general queries and advice, post a message to one of the [pyunigps Discussions](https://github.com/semuconsulting/pyunigps/discussions) channels.
 
