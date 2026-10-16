@@ -46,7 +46,8 @@ Created on 26 Jan 2026
 
 from logging import getLogger
 from socket import socket
-from types import FunctionType, NoneType
+from types import NoneType
+from typing import Callable
 
 from pynmeagps import NMEA_HDR, NMEAMessage, NMEAReader, SocketWrapper
 from pyrtcm import RTCMMessage, RTCMReader
@@ -81,10 +82,11 @@ class UNIReader:
         validate: int = VALCKSUM,
         protfilter: int = NMEA_PROTOCOL | UNI_PROTOCOL | RTCM3_PROTOCOL,
         quitonerror: int = ERR_LOG,
-        parsebitfield: bool = True,
+        parsebitfield: int = 1,
         bufsize: int = 4096,
         parsing: bool = True,
-        errorhandler: FunctionType | NoneType = None,
+        errorhandler: Callable | NoneType = None,
+        scaling: bool = True,
     ):
         """Constructor.
 
@@ -96,10 +98,11 @@ class UNIReader:
             Can be OR'd (7)
         :param int quitonerror: ERR_IGNORE (0) = ignore errors,  ERR_LOG (1) = log continue,
             ERR_RAISE (2) = (re)raise (1)
-        :param bool parsebitfield: 1 = parse bitfields, 0 = leave as bytes (1)
+        :param int parsebitfield: 1 = parse bitfields, 0 = leave as bytes (1)
         :param int bufsize: socket recv buffer size (4096)
         :param bool parsing: True = parse data, False = don't parse data (output raw only) (True)
-        :param FunctionType | NoneType errorhandler: error handling object or function (None)
+        :param bool scaling: True = apply scaling factors, False = don't apply scaling factors
+        :param Callable | NoneType errorhandler: error handling object or function (None)
         :raises: UNIStreamError (if mode is invalid)
         """
 
@@ -114,6 +117,7 @@ class UNIReader:
         self._parsebf = parsebitfield
         self._msgmode = msgmode
         self._parsing = parsing
+        self._scaling = scaling
         self._logger = getLogger(__name__)
 
         if self._msgmode not in (GET, SET, POLL, SETPOLL):
@@ -157,9 +161,8 @@ class UNIReader:
         :raises: Exception (if invalid or unrecognised protocol in data stream)
         """
 
-        parsing = True
         raw_data = parsed_data = None
-        while parsing:  # loop until end of valid message or EOF
+        while True:  # loop until end of valid message or EOF
             try:
 
                 raw_data = None
@@ -180,31 +183,27 @@ class UNIReader:
                     # if protocol filter passes UNI, return message,
                     # otherwise discard and continue
                     if self._protfilter & UNI_PROTOCOL:
-                        parsing = False
-                    else:
-                        continue
+                        break
+                    continue
                 # if it's an NMEA message (b'\x24\x..)
-                elif bytehdr in NMEA_HDR:
+                if bytehdr in NMEA_HDR:
                     raw_data, parsed_data = self._parse_nmea(bytehdr)
                     # if protocol filter passes NMEA, return message,
                     # otherwise discard and continue
                     if self._protfilter & NMEA_PROTOCOL:
-                        parsing = False
-                    else:
-                        continue
+                        break
+                    continue
                 # if it's a RTCM3 message
                 # (byte1 = 0xd3; byte2 = 0b000000**)
-                elif byte1 == b"\xd3" and (byte2[0] & ~0x03) == 0:
+                if byte1 == b"\xd3" and (byte2[0] & ~0x03) == 0:
                     raw_data, parsed_data = self._parse_rtcm3(bytehdr)
                     # if protocol filter passes RTCM, return message,
                     # otherwise discard and continue
                     if self._protfilter & RTCM3_PROTOCOL:
-                        parsing = False
-                    else:
-                        continue
+                        break
+                    continue
                 # unrecognised protocol header
-                else:
-                    raise UNIParseError(f"Unknown protocol header {bytehdr}.")
+                raise UNIParseError(f"Unknown protocol header {bytehdr}.")
 
             except EOFError:
                 return (None, None)
@@ -235,6 +234,7 @@ class UNIReader:
                 msgmode=self._msgmode,
                 validate=self._validate,
                 parsebitfield=self._parsebf,
+                scaling=self._scaling,
             )
         else:
             parsed_data = None
@@ -363,7 +363,8 @@ class UNIReader:
         message: bytes,
         msgmode: int = GET,
         validate: int = VALCKSUM,
-        parsebitfield: bool = True,
+        parsebitfield: int = 1,
+        scaling: bool = True,
     ) -> UNIMessage:
         """
         Parse binary UNI byte stream to UNIMessage object.
@@ -446,5 +447,6 @@ class UNIReader:
             msgmode=msgmode,
             parsebitfield=parsebitfield,
             payload=payload,
+            scaling=scaling,
         )
         return parsed_data
