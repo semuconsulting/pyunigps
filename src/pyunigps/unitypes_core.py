@@ -41,8 +41,9 @@ ASCII = "A"
 """UNI ASCII protocol"""
 
 SCALROUND = 12  # number of dp to round scaled attributes to
-
 FREQNO = "freqno"  # holds real time calc of freqno for SATSINFO
+BITFIELD = "_bit"
+GROUP = "_grp"
 
 # **************************************************
 # THESE ARE THE UNI PROTOCOL PAYLOAD ATTRIBUTE TYPES

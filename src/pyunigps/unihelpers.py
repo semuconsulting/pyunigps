@@ -11,6 +11,8 @@ Created on 6 Oct 2025
 :license: BSD 3-Clause
 """
 
+# pylint: disable = too-many-arguments, too-many-positional-arguments
+
 import struct
 from datetime import datetime, timezone
 from types import NoneType
@@ -326,24 +328,14 @@ def bytes2val(valb: bytes, adef: str) -> Any:
 
     """
 
-    if "*" in adef:
-        adef, scaling = adef.split("*", 1)
-        scaling = float(scaling)
-    else:
-        scaling = 1
-
     if atttyp(adef) == "X":  # bytes
         val = valb
     elif atttyp(adef) == "C":  # string
         val = valb.replace(b"\x00", b" ").decode("utf-8", errors="backslashreplace")
     elif atttyp(adef) in ("S", "U"):  # integer
         val = int.from_bytes(valb, byteorder="little", signed=atttyp(adef) == "S")
-        if scaling != 1:
-            val = round(val / scaling, SCALROUND)
     elif atttyp(adef) == "R":  # floating point
         val = struct.unpack("<f" if attsiz(adef) == 4 else "<d", valb)[0]
-        if scaling != 1:
-            val = round(val / scaling, SCALROUND)
     else:
         raise une.UNITypeError(f"Unknown attribute type {adef}")
     return val
@@ -506,12 +498,6 @@ def val2bytes(val: Any, adef: str) -> bytes:
 
     """
 
-    if "*" in adef:
-        adef, scaling = adef.split("*", 1)
-        scaling = float(scaling)
-    else:
-        scaling = 1
-
     try:
         if not isinstance(val, ATTTYPE[atttyp(adef)]):
             raise TypeError(
@@ -527,13 +513,9 @@ def val2bytes(val: Any, adef: str) -> bytes:
     elif atttyp(adef) == "C":  # string
         valb = f"{val:<{attsiz(adef)}}".encode("utf-8", errors="backslashreplace")
     elif atttyp(adef) in ("S", "U"):  # integer
-        if scaling != 1:
-            val = int(val * scaling)
         valb = val.to_bytes(
             attsiz(adef), byteorder="little", signed=atttyp(adef) == "S"
         )
     elif atttyp(adef) == "R":  # floating point
-        if scaling != 1:
-            val = float(val * scaling)
         valb = struct.pack("<f" if attsiz(adef) == 4 else "<d", val)
     return valb

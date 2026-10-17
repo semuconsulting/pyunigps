@@ -1,5 +1,9 @@
 # pyunigps Release Notes
 
+### RELEASE 1.0.1
+
+1. Update doc strings, type hints and workflows. No functional changes.
+
 ### RELEASE 1.0.0
 
 1. Update status to Stable.

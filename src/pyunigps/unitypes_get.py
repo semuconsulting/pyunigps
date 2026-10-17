@@ -35,7 +35,7 @@ from pyunigps.unitypes_core import (
 )
 
 EXTSOLSTAT = {
-    "groupextsolstat": (
+    "extsolstat_bit": (
         X1,
         {
             "rtkverify": U1,
@@ -46,7 +46,7 @@ EXTSOLSTAT = {
 }
 
 GPSGLOBDS2SIGMASK = {
-    "groupgpsmask": (
+    "gpsmask_bit": (
         X1,
         {
             "gpsl1": U1,
@@ -62,7 +62,7 @@ GPSGLOBDS2SIGMASK = {
 }
 
 GALBDS3SIGMASK = {
-    "groupgalmask": (
+    "galmask_bit": (
         X1,
         {
             "gale1": U1,
@@ -88,20 +88,20 @@ UNI_PAYLOADS_GET = {
     },
     "OBSVM": {
         "numobs": U4,
-        "groupobs": (
+        "groupobs_grp": (
             "numobs",
             {
                 "glofreq": U2,
                 "prn": U2,
                 "psr": R8,
                 "adr": R8,
-                "psrstd": U2 + "*100",
-                "adrstd": U2 + "*10000",
+                "psrstd": (U2, 0.01),
+                "adrstd": (U2, 0.0001),
                 "doppfreq": R4,
-                "cno": U2 + "*100",
+                "cno": (U2, 0.01),
                 "reserved1": U2,
                 "locktime": R4,
-                "trstatus": (
+                "trstatus_bit": (
                     X4,
                     {
                         "reserved2": U5,
@@ -123,10 +123,10 @@ UNI_PAYLOADS_GET = {
     # "OBSVH": {} # same as OVSVM, see below
     "OBSVMCMP": {
         "numobs": U4,
-        "groupobs": (
+        "groupobs_grp": (
             "numobs",
             {
-                "obsvmcmp": (
+                "obsvmcmp_bit": (
                     X24,
                     {
                         "reserved2": U5,
@@ -140,13 +140,13 @@ UNI_PAYLOADS_GET = {
                         "sigtype": U5,
                         "L2Cflag": U1,
                         "reserved6": U5,
-                        "doppler": "U028*256",
-                        "psr": "U036*128",
-                        "adr": "U032*256",
+                        "doppler": ("U028", 0.00390625),  # 1/256
+                        "psr": ("U036", 0.0078125),  # 1/128
+                        "adr": ("U032", 0.00390625),  # 1/256
                         "psrstd": U4,  # special processing see PSRSTD decode
-                        "adrstd": U4,  # special processing (n+1)/512
+                        "adrstd": (U4, 0.001953125),  # special processing (n+1)/512
                         "prn": U8,
-                        "locktime": "U021*32",
+                        "locktime": ("U021", 0.03125),  # 1/32
                         "cno": U5,  # special processing 20+
                         "glofreq": U6,
                         "reserved7": U16,
@@ -400,7 +400,10 @@ UNI_PAYLOADS_GET = {
         "p": U4,
         "ft": U4,
         "age": U4,
-        "flags": (X4, {"p1flag": U2, "p2flag": U1, "p3flag": U1, "reserved4": "U028"}),
+        "flags_bit": (
+            X4,
+            {"p1flag": U2, "p2flag": U1, "p3flag": U1, "reserved4": "U028"},
+        ),
     },
     "GALEPH": {
         "satid": U4,
@@ -571,7 +574,7 @@ UNI_PAYLOADS_GET = {
         "tdop": R4,
         "cutoff": R4,
         "prnnum": U2,
-        "groupprn": (
+        "groupprn_grp": (
             "None",
             {
                 "prn": U2,
@@ -645,7 +648,7 @@ UNI_PAYLOADS_GET = {
     # "BESTNAVXYZH": {}, # same as BESTNAVXYX, see below
     "BESTSAT": {
         "numsat": U4,
-        "groupsat": (
+        "groupsat_grp": (
             "numsat",
             {
                 "gnss": U4,
@@ -756,7 +759,7 @@ UNI_PAYLOADS_GET = {
         "cutoff": R4,
         "reserved2": R4,
         "numprn": U2,
-        "groupprn": (
+        "groupprn_grp": (
             "numprn",
             {
                 "prn": U2,
@@ -775,7 +778,7 @@ UNI_PAYLOADS_GET = {
         "reserved1": U1,
         "reserved2": U1,
         "reserved3": U1,
-        "freqflag": (
+        "freqflag_bit": (
             X1,
             {
                 "l1cab1ie1": U1,
@@ -787,13 +790,13 @@ UNI_PAYLOADS_GET = {
                 "reserved4": U2,
             },
         ),
-        "groupsat": (
+        "groupsat_grp": (
             "numsat",
             {
                 "prn": U1,
                 "azi": S2,
                 "elev": S1,
-                "groupfreq": (
+                "groupfreq_grp": (
                     FREQNO,  # calculated by 'look ahead' at run time
                     {"sysstatus": U1, "cno": U1, "freqstatus": U1, FREQNO: U1},
                 ),
@@ -837,7 +840,7 @@ UNI_PAYLOADS_GET = {
         "satvis": U4,
         "compalm": U4,
         "numsat": U4,
-        "groupsat": (
+        "groupsat_grp": (
             "numsat",
             {
                 "glofreq": U2,
@@ -852,7 +855,7 @@ UNI_PAYLOADS_GET = {
     },
     "SATECEF": {
         "numsat": U4,
-        "groupsat": (
+        "groupsat_grp": (
             "numsat",
             {
                 "gnss": U4,  # see GNSS decode
@@ -1036,12 +1039,12 @@ UNI_PAYLOADS_GET = {
     # "KSXT": {}, # ascii only
     "INFOPART1": {
         "nummsg": U1,
-        "groupmsg": (
+        "groupmsg_grp": (
             "nummsg",
             {
                 "info": U1,
                 "length": U2,
-                "groupdata": (
+                "groupdata_grp": (
                     "length",
                     {
                         "data": U1,
@@ -1097,7 +1100,7 @@ UNI_PAYLOADS_GET = {
         "iodssr": U1,
         "reserved1": U1,
         "sow": U4,
-        "grouporbitcorr": (
+        "grouporbitcorr_grp": (
             6,
             {
                 "orbitcorr": "U012",
@@ -1109,7 +1112,7 @@ UNI_PAYLOADS_GET = {
         "iodssr": U1,
         "numsat": U1,
         "sow": U4,
-        "groupbias": (
+        "groupbias_grp": (
             "numsat",
             {
                 "codebias": "U064",
@@ -1123,7 +1126,7 @@ UNI_PAYLOADS_GET = {
         "sow": U4,
         "subtype": U1,
         "reserved1": U3,
-        "groupclockbias": (
+        "groupclockbias_grp": (
             23,
             {
                 "clkcorr": U4,
@@ -1139,7 +1142,7 @@ UNI_PAYLOADS_GET = {
         "reserved2": U1,
         "reserved3": U1,
         "sow": U4,
-        "groupurai": (
+        "groupurai_grp": (
             70,
             {
                 "urai": U2,
@@ -1168,7 +1171,7 @@ UNI_PAYLOADS_GET = {
         "iodid": U1,
         "numsys": U2,
         "reserved2": U2,
-        "groupsys": (
+        "groupsys_grp": (
             "numsys",
             {
                 "gnssid": U2,
@@ -1189,7 +1192,7 @@ UNI_PAYLOADS_GET = {
         "iodid": U1,
         "vi": S2,
         "reserved": S2,
-        "groupiod": (
+        "groupiod_grp": (
             68,
             {
                 "iodref": U2,
@@ -1207,13 +1210,13 @@ UNI_PAYLOADS_GET = {
         "iodid": U1,
         "vi": S2,
         "reserved": S2,
-        "groupdcm": (
+        "groupdcm_grp": (
             4,
             {
                 "dcm": U1,
             },
         ),
-        "groupdcc": (
+        "groupdcc_grp": (
             68,
             {
                 "dcc": S2,
@@ -1228,14 +1231,14 @@ UNI_PAYLOADS_GET = {
         "iodid": U1,
         "vi": S2,
         "numsys": S2,
-        "groupsys": (
+        "groupsys_grp": (
             "numsys",
             {
                 "gnssid": U2,
                 "dcm": U2,
                 "satmask": U5,
                 "reserved1": U3,
-                "groupdcc": (
+                "groupdcc_grp": (
                     36,
                     {
                         "dcc": S2,
@@ -1252,7 +1255,7 @@ UNI_PAYLOADS_GET = {
         "iodid": U1,
         "vi": S2,
         "reserved2": S2,
-        "groupcodebias": (
+        "groupcodebias_grp": (
             256,
             {
                 "codebiases": S2,
@@ -1267,7 +1270,7 @@ UNI_PAYLOADS_GET = {
         "iodid": U1,
         "vi": S2,
         "reserved2": S2,
-        "groupbias": (
+        "groupbias_grp": (
             256,
             {
                 "phasebiases": S2,
@@ -1330,7 +1333,7 @@ UNI_PAYLOADS_GET = {
     # payload definition is available.
     # ********************************************************************
     "UNI-NOMINAL": {
-        "groupdata": (
+        "groupdata_grp": (
             "None",
             {
                 "data": X1,

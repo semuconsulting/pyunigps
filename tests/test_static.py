@@ -63,8 +63,6 @@ class StaticTest(unittest.TestCase):
             (-23.12345678912345, unt.R8),
             ("test1234", unt.C8),
             ("test1234", "C016"),
-            (23.12345678912345, "R008*100"),
-            (2345, "U002*20"),
         ]
         EXPECTED_RESULTS = [
             b"\x29\x09",
@@ -73,8 +71,6 @@ class StaticTest(unittest.TestCase):
             b"\x1f\xc1\x37\xdd\x9a\x1f\x37\xc0",
             b"test1234",
             b"test1234        ",
-            b'\xe0\x8e\xd3\xfc\xb0\x10\xa2@',
-            b'4\xb7',
         ]
         for i, inp in enumerate(INPUTS):
             val, att = inp
@@ -99,7 +95,6 @@ class StaticTest(unittest.TestCase):
             (b"\xd7\xfc\xb8\x41", unt.R4),
             (b"\x1f\xc1\x37\xdd\x9a\x1f\x37\xc0", unt.R8),
             (b"test1234", unt.C8),
-            (b'\xe0\x8e\xd3\xfc\xb0\x10\xa2@', "R008*100"),
         ]
         EXPECTED_RESULTS = [
             2345,
@@ -107,7 +102,6 @@ class StaticTest(unittest.TestCase):
             23.12345678,
             -23.12345678912345,
             "test1234",
-            23.123456789123,
         ]
         for i, inp in enumerate(INPUTS):
             valb, att = inp

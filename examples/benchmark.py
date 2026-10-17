@@ -17,12 +17,11 @@ import sys
 from io import BytesIO
 from platform import python_version
 from platform import version as osver
-from sys import argv
 from time import process_time_ns
 
 # get path to site-packages (source) folder within venv
 pypath = (
-    f"{os.path.expanduser("~")}/pygpsclient/lib/python"
+    f"{os.path.expanduser('~')}/pygpsclient/lib/python"
     f"{sys.version_info.major}.{sys.version_info.minor}/site-packages"
 )
 sys.path.insert(0, os.path.abspath(pypath))
@@ -91,7 +90,7 @@ for msg in UNIMESSAGES:
 UNIBYTES = msgb
 
 
-def progbar(i: int, lim: int, inc: int = 20):
+def progbar(i: int, lim: int, inc: int = 50):
     """
     Display progress bar on console.
 
@@ -109,13 +108,13 @@ def progbar(i: int, lim: int, inc: int = 20):
         )
 
 
-def benchmark(**kwargs) -> float:
+def benchmark(**kwargs) -> tuple[float,float]:
     """
     pyrtcm Performance benchmark test.
 
     :param int cycles: (kwarg) number of test cycles (10,000)
     :returns: benchmark as transactions/second
-    :rtype: float
+    :rtype: tuple[float,float]
     :raises: SBFStreamError
     """
 
@@ -162,7 +161,7 @@ def main():
     args as benchmark() method
     """
 
-    benchmark(**dict(arg.split("=") for arg in argv[1:]))
+    benchmark(**dict(arg.split("=") for arg in sys.argv[1:]))
 
 
 if __name__ == "__main__":
