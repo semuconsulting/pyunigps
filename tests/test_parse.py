@@ -338,7 +338,7 @@ class ParseTest(unittest.TestCase):
         msg = UNIReader.parse(msg.serialize())
         # print(msg)
         self.assertEqual(str(msg), EXPECTED_PARSE)
-        self.assertEqual(str(eval(repr(msg))), str(msg))
+        self.assertEqual(str(eval(repr(msg))), str(msg))  #nosec
 
     def testimmutable(self):
         msg = UNIMessage(
